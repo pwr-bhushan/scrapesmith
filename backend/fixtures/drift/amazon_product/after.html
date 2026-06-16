@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Product Listing - After Drift</title>
+  <style>body { font-family: sans-serif; }</style>
+  <script>console.log("new-tracking-v2");</script>
+</head>
+<body>
+  <!-- Product listing page — drifted markup (class renames + tag swaps) -->
+  <div id="product-detail">
+    <h2 class="pdp-product-name">Apple MacBook Pro 14-inch</h2>
+    <section class="pricing-section">
+      <!-- data-price-amount attribute removed; now inside a nested span -->
+      <div class="price-container">
+        <span class="a-price-whole"> ₹ 1,49,900 </span>
+        <span class="price-tag">Inclusive of all taxes</span>
+      </div>
+    </section>
+    <div class="review-summary">
+      <em class="review-score">4.6</em>
+      <small class="review-count">(1,234 ratings)</small>
+    </div>
+    <div class="delivery-info">
+      <p class="availability-text">In Stock</p>
+    </div>
+  </div>
+</body>
+</html>

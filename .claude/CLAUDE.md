@@ -7,7 +7,7 @@ Step 1:  PLAN       → skill: everything-claude-code:plan          via Agent(mo
 Step 2:  TESTS      → skill: everything-claude-code:tdd            via Agent(model="sonnet")
 Step 3:  IMPLEMENT  → skill: everything-claude-code:build-fix      via Agent(model="sonnet")
 Step 4:  VERIFY     → skill: everything-claude-code:verify         via Agent(model="sonnet")
-Step 5:  REVIEW     → skill: everything-claude-code:python-review  via Agent(model="opus")
+Step 5:  REVIEW     → skill: everything-claude-code:python-review + ponytail:ponytail-review  via Agent(model="opus")
 Step 6:  FIX PLAN   → skill: everything-claude-code:plan           via Agent(model="opus")   (for review issues)
 Step 7:  FIX        → skill: everything-claude-code:build-fix      via Agent(model="sonnet")  (after user approval)
 Step 8:  RE-VERIFY  → skill: everything-claude-code:verify         via Agent(model="sonnet")
@@ -69,6 +69,11 @@ Step 10: SAVE       → skill: everything-claude-code:save-session   via Agent(m
 - **Simplicity First** — make every change as simple as possible.
 - **No Laziness** — find root causes, no temporary fixes, senior developer standards.
 - **Minimal Impact** — changes should only touch what's necessary.
+
+## Diagrams
+- **Always use Mermaid.js** for workflow diagrams (and any flowcharts, sequence diagrams, state machines, or architecture diagrams) in plans, docs, and Markdown files. Author them in fenced ```mermaid code blocks — never ASCII art, bullet-step lists, or external image files for these.
+- Pick the Mermaid diagram type that fits: `flowchart` for workflows/pipelines, `sequenceDiagram` for request/response flows, `stateDiagram-v2` for state machines, `erDiagram` for data models.
+- **Data models / schemas:** always render a Mermaid `erDiagram` *alongside* the SQL DDL (keep both — SQL stays the source of truth, the erDiagram is the visual). A visual ER diagram beats reading raw DDL.
 
 ## Cross-Project Lessons
 

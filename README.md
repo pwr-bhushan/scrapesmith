@@ -6,9 +6,10 @@ Self-healing HTML parser. Upload raw HTML (single file or gzipped batch), pick t
 
 ## Stack
 
-- **Backend:** Python 3.12, FastAPI, SQLAlchemy, Postgres, lxml/BeautifulSoup
+- **Backend:** Python 3.12, FastAPI (async), SQLAlchemy, Postgres, Redis + arq (jobs)
+- **Rendering / extraction:** Playwright (headless Chromium) — the single source of truth for the DOM, so selectors picked in the preview resolve identically at extract time
 - **Frontend:** Next.js (React + TypeScript)
-- **LLM:** local model via Ollama (configurable)
+- **LLM:** pluggable heal provider — local model via Ollama by default, cloud model (e.g. Claude) configurable
 
 ## Layout
 
