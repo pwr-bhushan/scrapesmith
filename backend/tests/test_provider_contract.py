@@ -15,6 +15,7 @@ FakeProvider is defined inline here — it's test-only and needs no implementati
 from __future__ import annotations
 
 import inspect
+
 import pytest
 
 from spike.heal.provider import (
@@ -24,7 +25,6 @@ from spike.heal.provider import (
     Proposal,
     validate_proposal,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared test data

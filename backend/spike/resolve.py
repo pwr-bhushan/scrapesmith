@@ -22,12 +22,10 @@ ponytail: Playwright sync + tempfile; normalize is pure string ops.
 """
 from __future__ import annotations
 
+import os
 import re
 import tempfile
-import os
-from pathlib import Path
 from typing import List
-
 
 _VALID_PREFIXES = ("css=", "xpath=")
 
@@ -55,7 +53,8 @@ def resolve_selector(html: str, selector: str) -> List[str]:
             f"Selector must have a css= or xpath= prefix, got: {selector!r}"
         )
 
-    from playwright.sync_api import sync_playwright, Error as PlaywrightError
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import sync_playwright
 
     # Write HTML to a temp file so Playwright can load it as file://
     with tempfile.NamedTemporaryFile(

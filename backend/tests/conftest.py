@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pathlib
+
 import pytest
 
 # Absolute path to fixtures directory (sibling of tests/)

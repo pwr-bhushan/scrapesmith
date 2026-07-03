@@ -4,10 +4,7 @@ All tests must FAIL (RED) until Step 3 implements clean_html().
 """
 from __future__ import annotations
 
-import pytest
-
 from spike.cleaner import clean_html
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

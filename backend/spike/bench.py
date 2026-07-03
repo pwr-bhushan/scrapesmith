@@ -14,7 +14,7 @@ import json
 import pathlib
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 
@@ -105,9 +105,9 @@ def run_bench(
         Flat list of ``BenchResult`` objects (one per provider×case×field).
     """
     from spike.cleaner import clean_html
-    from spike.resolve import normalize, resolve_selector
     from spike.dq import DQRule, check_dq
     from spike.heal.provider import Failure, FieldSpec
+    from spike.resolve import normalize, resolve_selector
 
     results: List[BenchResult] = []
 

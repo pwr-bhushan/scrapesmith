@@ -12,12 +12,10 @@ All tests must FAIL (RED) until Step 3 implements compute_metrics().
 """
 from __future__ import annotations
 
-import pathlib
 import pytest
 
-from spike.bench import BenchCase, BenchResult, FieldCase, compute_metrics, load_case
-from spike.heal.provider import Failure, FieldSpec, HealProvider, Proposal
-
+from spike.bench import BenchCase, BenchResult, compute_metrics, load_case
+from spike.heal.provider import HealProvider, Proposal
 
 # ---------------------------------------------------------------------------
 # FakeProvider for bench tests

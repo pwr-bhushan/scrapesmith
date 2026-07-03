@@ -7,10 +7,7 @@ All tests must FAIL (RED) until Step 3 implements check_dq().
 """
 from __future__ import annotations
 
-import pytest
-
 from spike.dq import DQRule, check_dq
-
 
 # ---------------------------------------------------------------------------
 # Test: ok status

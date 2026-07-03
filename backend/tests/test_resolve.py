@@ -10,10 +10,10 @@ NOTE on Playwright: resolve_selector() uses Playwright sync against file://.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 from spike.resolve import normalize, resolve_selector
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (inline HTML — no file I/O in these tests)

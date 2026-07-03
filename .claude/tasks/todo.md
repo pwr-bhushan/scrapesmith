@@ -29,18 +29,18 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 
 **Phase 0 CODE COMPLETE:** All spike modules implemented and unit-tested (74 passed, 6 skipped, 0 failed, 64% coverage). Remaining work is live bench execution + GATE decision (requires Ollama installed, models pulled, `playwright install chromium`, ANTHROPIC_API_KEY set).
 
-### Later
+### Later — DEFERRED to end-of-MVP (decided 2026-06-18, see phase-0 plan §"GATE Execution — Deferred")
 - [ ] Collect 3–5 real before/after drift HTML pairs (with known correct values = anchors) — PARTIAL: 1 synthetic case built; real pairs still needed
-- [ ] **GATE:** go/no-go + model choice written back to plan §13 — NOT DONE: requires live bench execution
+- [ ] **GATE:** go/no-go + model choice written back to plan §13 — requires live bench (ANTHROPIC_API_KEY + Ollama); run during whole-app E2E testing, not now
 
-## Phase 0.5 — Skeleton
+## Phase 0.5 — Skeleton ✅ (2026-06-18) — plan: `.claude/plans/phase-0.5-skeleton.md`
 
-- [ ] FastAPI (async) boots with `/health`
-- [ ] Postgres + first migration (`domain`, `config_version`, `upload_batch`, `upload_file`, `parse_result`, `job`)
-- [ ] Redis + arq worker smoke test (no-op job)
-- [ ] Playwright pool smoke test (render a fixture file headless)
-- [ ] Next.js app boots with shared API client
-- [ ] CI: lint + pytest + frontend type-check
+- [x] FastAPI (async) boots with `/health` → 200 (ASGI test + real uvicorn curl)
+- [x] Postgres + first Alembic migration (`domain`, `config_version`, `upload_batch`, `upload_file`, `parse_result`, `job`) — applied, circular FK broken via `use_alter`
+- [x] Redis + arq worker smoke test (no-op job round-trips)
+- [x] Playwright pool smoke test (renders `before.html` headless)
+- [x] Next.js app boots with shared typed API client (`getHealth()`); build + tsc green
+- [x] CI: ruff + pytest (pg/redis service containers) + frontend tsc
 
 ## Phase 1 — Upload + Playwright render
 
@@ -105,6 +105,15 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 0.5 — Skeleton COMPLETE (2026-06-18)**
+- Backend: 84 tests pass (80 spike + 4 new smoke: health/worker/render/migration), ruff clean.
+- DB: Alembic `41f63c59da2d` creates all 6 tables; circular FK (config_version↔upload_batch↔upload_file) broken with `use_alter=True` on the two nullable back-refs.
+- Services: Postgres 16 + Redis 7 via `brew services` locally (Docker unavailable); `docker-compose.yml` + CI service containers are the canonical path.
+- Frontend: Next.js 15 App Router + TS; `npm run build` + `tsc --noEmit` green; `/` is dynamic (no-store health fetch).
+- Real boot proof: `uvicorn app.main:app` → `curl /health` = `{"status":"ok"}`.
+- Fixes along the way: bad `build-backend` (`legacy:build`→`build_meta`), venv pip 21→26 for PEP 660 editable, `requires-python` 3.11→3.9 drift.
+- Known follow-ups: `npm audit` flags 2 vulns in next 15.1.0 deps (revisit when we add real UI); Playwright smoke is local-only (CI runs `SKIP_PLAYWRIGHT=1`).
 
 **Phase 0 — Heal Spike CODE COMPLETION (2026-06-16)**
 - Tests: 74 passed, 6 skipped (Playwright gated), 0 failed

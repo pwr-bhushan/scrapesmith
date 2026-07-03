@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from spike.bench import compute_metrics
 from spike.report import render_table, write_artifacts
 

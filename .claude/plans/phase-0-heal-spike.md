@@ -156,3 +156,13 @@ Review (python-review + ponytail-review) found the core metric math correct but 
 5. **L5 / ponytail nits** — move `import re` to module top in `cleaner.py`; drop the placeholder-less `f` prefix in `report.py`. Trivial.
 
 **Deferred (note only, no code change):** L2 (`Optional[str]` vs `str | None` under 3.9 — safe via `from __future__ import annotations`), L3 (prod sandboxing of attacker HTML into Playwright), L4 (prompt-injection hardening). These are production concerns; the spike measures the engine, not the threat model. Record L3/L4 as a one-line caveat in the eventual GATE write-up (§13).
+
+---
+
+## GATE Execution — Deferred to end-of-MVP (decided 2026-06-18)
+
+The spike is code-complete and committed (`86ba558`). Running the live bench is the **only** remaining Phase 0 work, and it's blocked purely on env setup (`ANTHROPIC_API_KEY` unset; Ollama not installed, ~10 GB pulls) — not on code. `bench.py` is a self-contained script behind a clean provider interface; **nothing downstream depends on running it**. The GATE is a go/no-go *decision*, not a code dependency.
+
+**Decision:** defer the live bench + GATE decision to the end of the MVP (built alongside whole-app end-to-end testing), and build forward through Phase 0.5 → 5 now. Plug in the key + Ollama at that point, run `bench.py` across providers, and write the go/no-go + model choice to plan §13 + todo.md Review.
+
+**Risk accepted:** if the GATE later fails (local model can't produce generalizing selectors, §15 HIGH risk), Phase 6 heal may need re-architecture — but the cloud provider is a working escape hatch, and Phases 0.5–5 (skeleton, upload, picker, parser, batch) are independent of the model choice. Low blast radius.
