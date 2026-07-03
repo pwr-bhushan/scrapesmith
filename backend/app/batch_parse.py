@@ -64,9 +64,12 @@ async def gather_results(session: AsyncSession, batch_id: uuid.UUID, cv_id: uuid
 
     out = []
     for fid, r in sorted(latest.items(), key=lambda kv: _index_of(file_by_id[kv[0]].raw_html_path)):
+        uf = file_by_id[fid]
         out.append(
             {
-                "file": file_by_id[fid].filename,
+                "file": uf.filename,
+                "path": uf.raw_html_path,
+                "dom_skeleton_hash": uf.dom_skeleton_hash,
                 "data": r.data or {},
                 "field_status": r.field_status or {},
                 "flags": r.flags or {},

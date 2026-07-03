@@ -1,4 +1,5 @@
 import BatchResults from "@/components/BatchResults";
+import HealReview from "@/components/HealReview";
 import RenderFrame from "@/components/RenderFrame";
 
 // Next 15: params is async.
@@ -13,6 +14,7 @@ export default async function PickPage({
       <h1 style={{ fontSize: 20 }}>Pick fields</h1>
       <RenderFrame batchId={batchId} />
       <BatchResults batchId={batchId} />
+      <HealReview batchId={batchId} />
     </main>
   );
 }

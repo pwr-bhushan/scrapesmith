@@ -213,3 +213,51 @@ export function exportCsvUrl(batchId: string): string {
 export function exportJsonUrl(batchId: string): string {
   return `${API_BASE}/batch/${batchId}/export.json`;
 }
+
+// ---- Phase 6: heal ----
+
+export interface HealProposal {
+  selector: string;
+  status: "healed" | "suspect" | "still_broken";
+  value: string | null;
+  anchor_ok: boolean | null;
+  anchor?: string | null;
+}
+
+export interface HealCluster {
+  hash: string;
+  size: number;
+  representative: string;
+  model: string;
+  proposals: Record<string, HealProposal>;
+}
+
+export interface HealProposeResult {
+  triggered: boolean;
+  failing?: string[];
+  clusters?: HealCluster[];
+  field_rates: Record<string, FieldRate>;
+}
+
+export async function healPropose(batchId: string): Promise<HealProposeResult> {
+  const res = await fetch(`${API_BASE}/heal/propose`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ batch_id: batchId }),
+  });
+  if (!res.ok) throw new Error(`healPropose failed (${res.status}): ${await res.text()}`);
+  return res.json();
+}
+
+export async function healAccept(
+  batchId: string,
+  accepted: Record<string, string>
+): Promise<{ config_version_id: string; version: number; healed: string[] }> {
+  const res = await fetch(`${API_BASE}/heal/accept`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ batch_id: batchId, accepted }),
+  });
+  if (!res.ok) throw new Error(`healAccept failed (${res.status}): ${await res.text()}`);
+  return res.json();
+}

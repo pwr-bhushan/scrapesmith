@@ -82,14 +82,14 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Batch results screen (5.8) with progress bar (`BatchResults`)
 - [x] CSV (one row per list item, `__file`/`__item_index`) + nested JSON export (`app/export.py`, `/batch/{id}/export.csv|.json`)
 
-## Phase 6 — Heal (cluster → propose → value-first review)
+## Phase 6 — Heal (cluster → propose → value-first review) ✅ (2026-06-18) — plan: `.claude/plans/phase-6-heal.md`
 
-- [ ] Per-field drift trigger (§9): any field failing on ≥30% of items
-- [ ] Cluster failing files by `dom_skeleton_hash`; representative = centroid
-- [ ] Heal each cluster via provider; anchor values passed in prompt
-- [ ] Post-check: valid selector → resolves → DQ → not-too-positional → **anchor match** → 2 more in cluster
-- [ ] Drift UI (5.6) + value-first review UI (5.7) with suspect flagging
-- [ ] Anti-loop guards (don't re-heal a healed-and-failed skeleton)
+- [x] Per-field drift trigger (§9): `failing_fields` at ≥30% (`app/heal.py`)
+- [x] Cluster failing files by `dom_skeleton_hash`; representative = centroid (`cluster_failures`)
+- [x] Heal each cluster via provider (reuses spike Cloud/Ollama providers; `select_provider` gated); anchor enforced by post-check not prompt
+- [x] Post-check (§10 steps 1–6): valid prefix → resolves → DQ → not-too-positional → **anchor match** → 2 more cluster files → healed|suspect|still_broken
+- [x] Drift UI (5.6) + value-first review (5.7) with suspect flagging (`HealReview`); `/heal/propose` + `/heal/accept` (new config_version, created_by=llm-heal)
+- [x] Anti-loop: cluster-once per hash; suspect/still_broken never auto-applied. Live model wiring = same deferred GATE dependency (post-check tested with FakeProvider).
 
 ## Phase 7 — Versioning
 
@@ -107,6 +107,13 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 6 — Heal COMPLETE (2026-06-18)** — the headline feature
+- Backend: 139 tests pass, ruff clean. New: `app/heal.py` (trigger/cluster/post-check/provider select), `routes/heal.py` (propose/accept). Reuses spike heal providers + cleaner.
+- Anchor-correctness enforced by post-check (§10 step 5), independent of the prompt → robust even with the pre-anchor spike prompt. Statuses healed/suspect/still_broken tested with a FakeProvider.
+- `/heal/accept` creates a new config_version (created_by=llm-heal); naive version bump (advisory-lock is Phase 7).
+- Frontend: HealReview (value-first §5.7, suspect flagging, per-field accept); build + tsc green.
+- Live model = same deferred dependency as the GATE (no ANTHROPIC_API_KEY/Ollama); propose returns model:"unavailable" + the drift, honestly.
 
 **Phase 5 — Async batch + export COMPLETE (2026-06-18)**
 - Backend: 134 tests pass, ruff clean. New: `app/batch_parse.py` (run_batch + gather_results), `app/aggregate.py` (rates), `app/export.py` (CSV/JSON), `routes/jobs.py`, `worker.py::batch_parse` arq task.
