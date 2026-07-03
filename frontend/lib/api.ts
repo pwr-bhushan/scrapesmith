@@ -125,6 +125,7 @@ export interface ConfigFieldInput {
   list_parent_selector?: string | null;
   type?: string | null;
   dq?: Record<string, unknown> | null;
+  anchor?: { value: string; fingerprint?: unknown } | null;
 }
 
 export async function saveConfig(
@@ -137,5 +138,25 @@ export async function saveConfig(
     body: JSON.stringify({ fields }),
   });
   if (!res.ok) throw new Error(`saveConfig failed: ${res.status}`);
+  return res.json();
+}
+
+export interface CanaryResult {
+  file_index: number;
+  filename: string;
+  config_version: number;
+  data: Record<string, unknown>;
+  field_status: Record<string, string>;
+  flags: Record<string, string[]>;
+  anchor_ok: Record<string, boolean | null>;
+}
+
+export async function canary(batchId: string, index: number): Promise<CanaryResult> {
+  const res = await fetch(`${API_BASE}/parse/canary`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ batch_id: batchId, index }),
+  });
+  if (!res.ok) throw new Error(`canary failed (${res.status}): ${await res.text()}`);
   return res.json();
 }

@@ -22,6 +22,7 @@ class ConfigField(BaseModel):
     list_parent_selector: Optional[str] = None
     type: Optional[str] = None  # Phase 3 inference
     dq: Optional[dict] = None  # Phase 3 preset default; evaluated by the Phase 4 DQ engine
+    anchor: Optional[dict] = None  # Phase 4 §10: {value, fingerprint} captured at Confirm
 
 
 class SaveConfigRequest(BaseModel):

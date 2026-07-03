@@ -75,6 +75,7 @@ export default function RenderFrame({ batchId }: { batchId: string }) {
       </div>
       <FieldPanel
         batchId={batchId}
+        index={index}
         fields={fields}
         onRemove={(i) => setFields((prev) => prev.filter((_, j) => j !== i))}
       />

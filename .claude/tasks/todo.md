@@ -67,12 +67,12 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Popover UI (5.3): "Looks like TYPE (conf%)" + Change dropdown + value; field carries type + preset dq
 - [x] ✨ "Ask AI" opt-in LLM classifier — plumbed; honest `llm_unavailable` without ANTHROPIC_API_KEY (never automatic)
 
-## Phase 4 — Parser + DQ + anchors
+## Phase 4 — Parser + DQ + anchors ✅ (2026-06-18) — plan: `.claude/plans/phase-4-parser-dq.md`
 
-- [ ] Generic parser runs a config in the browser context → `parse_result`
-- [ ] DQ engine: `ok | empty | regex_fail | type_fail | range_fail | out_of_scope`
-- [ ] Capture field **anchor** (value + fingerprint) on user confirm
-- [ ] Canary result panel (5.5); "Re-pick" round-trip back to picker
+- [x] Generic parser runs a config in the browser context → `parse_result` (`app/parser.py`)
+- [x] DQ engine `ok|empty|regex_fail|type_fail|range_fail|out_of_scope` (`app/dq.py`, ported from spike + min/max_len + url + out_of_scope)
+- [x] Capture field **anchor** (value + descriptor fingerprint) at Confirm; stored in config field
+- [x] Canary panel (5.5): `POST /parse/canary` runs config on one file, stores parse_result, returns per-field value/DQ/anchor_ok (`CanaryPanel`); Re-pick = same picker screen
 
 ## Phase 5 — Async batch + per-field rates + export
 
@@ -107,6 +107,12 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 4 — Parser + DQ + Anchors COMPLETE (2026-06-18)**
+- Backend: 129 tests pass, ruff clean. New: `app/dq.py` (6-status engine), `app/parser.py` (locator-based, single+list), `routes/parse.py` (canary + anchor check).
+- Anchor (§10) captured at Confirm (resolved value + descriptor fingerprint); canary compares parsed vs anchor (normalized) → anchor_ok.
+- E2E on amazon before.html: price ok + anchor ✓; title ok + anchor correctly flagged divergence vs a wrong hand-anchor (proves the check).
+- Frontend: CanaryPanel table (field/value/DQ/anchor), "Test on this file" in FieldPanel; build + tsc green.
 
 **Phase 3 — Inference COMPLETE (2026-06-18)**
 - Backend: 118 tests pass, ruff clean. New: `app/presets.py` (12 types + custom), `app/infer.py` (cascade + gated LLM), `routes/infer.py` (POST /infer, GET /presets).
