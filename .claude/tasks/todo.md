@@ -42,13 +42,14 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Next.js app boots with shared typed API client (`getHealth()`); build + tsc green
 - [x] CI: ruff + pytest (pg/redis service containers) + frontend tsc
 
-## Phase 1 — Upload + Playwright render
+## Phase 1 — Upload + Playwright render ✅ (2026-06-18) — plan: `.claude/plans/phase-1-upload-render.md`
 
-- [ ] `POST /upload` accepts single `.html` or `.gz`/`.zip` archive (zip-bomb + size caps)
-- [ ] Files persisted to `./uploads/{batch_id}/`
-- [ ] `dom_skeleton_hash` computed per file (dynamic attrs stripped)
-- [ ] Frontend upload screen (5.1) with JS-render toggle
-- [ ] Render file N in isolated Playwright context; inject selection overlay; stream DOM view; Prev/Next
+- [x] `POST /upload` accepts single `.html` / `.gz` / `.zip` (zip-bomb + size + count caps in `app/upload.py`)
+- [x] Files persisted to `./uploads/{batch_id}/{index}_{name}`; `domain` get-or-create + `upload_batch` + `upload_file` rows
+- [x] `dom_skeleton_hash` per file (`app/skeleton.py`, §411 — dynamic attrs stripped, stable class/role kept)
+- [x] Frontend upload screen (5.1) with JS-render toggle (`components/UploadForm.tsx`)
+- [x] Render file N in isolated egress-blocked Playwright context; sanitized + CSP + hover overlay; sandboxed iframe; Prev/Next (`app/render.py::render_snapshot`, `components/RenderFrame.tsx`)
+- Deferred to Phase 2: click-to-select, selector ladder, list detection, `/pick/validate`, popover
 
 ## Phase 2 — Click-to-select + stability ladder
 
@@ -105,6 +106,14 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 1 — Upload + Render COMPLETE (2026-06-18)**
+- Backend: 101 tests pass, ruff clean. New modules: `skeleton.py`, `upload.py`, `storage.py`, `routes/{upload,batch}.py`, `render.py::render_snapshot`.
+- Security (§14): caps enforced pre-extraction (zip-bomb), filenames sanitized (no traversal), render context aborts all non-file:// requests (no SSRF), snapshot strips scripts + strict CSP, iframe `sandbox="allow-scripts"` (no same-origin).
+- Async fix: `NullPool` on the engine — module-global engine + per-test event loops caused "another operation in progress"; NullPool gives a fresh connection per checkout (DB isn't the bottleneck).
+- Added dep `python-multipart` (FastAPI form/file parsing).
+- Real E2E proof: `curl -F` upload of amazon `before.html` → batch + `dom_skeleton_hash=f07cdd35...` → `/render` returns CSP-locked, overlay-injected snapshot.
+- Frontend: upload screen (5.1) + picker shell (iframe + Prev/Next); `build` + `tsc` green. `/pick/[batchId]` dynamic.
 
 **Phase 0.5 — Skeleton COMPLETE (2026-06-18)**
 - Backend: 84 tests pass (80 spike + 4 new smoke: health/worker/render/migration), ruff clean.

@@ -50,3 +50,11 @@ Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See
 **Local infra without Docker** — Docker Desktop isn't installed on this machine; `brew install postgresql@16 redis` + `brew services start` provides pg on 5432 / redis on 6379. `psql` lives at `/opt/homebrew/opt/postgresql@16/bin` (keg-only — add to PATH). Create role+db to match the URL: `CREATE ROLE scrapesmith LOGIN PASSWORD 'scrapesmith' CREATEDB;` + `CREATE DATABASE scrapesmith OWNER scrapesmith;`. `docker-compose.yml` stays the canonical/CI path.
 
 **Integration smoke tests gate on service reachability** — `tests/_svc.py::url_reachable` skips DB/redis tests when the port is closed; Playwright gates on `SKIP_PLAYWRIGHT=1`. Keeps the suite green on a bare machine and lets CI opt in/out per service.
+
+**Async engine + pytest-asyncio needs NullPool** — a module-global `create_async_engine` pools asyncpg connections; pytest-asyncio (auto mode) makes a new event loop per test, so a pooled connection from a prior loop gets reused → `InterfaceError: another operation is in progress` / `Task attached to a different loop`. Fix: `poolclass=NullPool` (fresh connection per checkout). Fine here — render is the bottleneck, not DB. (`backend/app/db.py`.)
+
+**FastAPI form/file uploads need `python-multipart`** — `File(...)`/`Form(...)` params raise at request time without it. It's a runtime dep, add to pyproject.
+
+**Untrusted-HTML render safety (§14)** — three layers: (1) Playwright context `page.route("**/*")` aborts every non-`file://`/`data:` request (no SSRF/egress); (2) snapshot sanitized — strip `<script>`/`<noscript>`, inject strict CSP meta, our overlay is the only inline script; (3) frontend iframe `sandbox="allow-scripts"` WITHOUT `allow-same-origin` (overlay runs, can't touch parent). Never serve raw uploaded HTML to the browser.
+
+**`dom_skeleton_hash` is lossy by design** — drives clustering/dedup only (§10), NOT extraction correctness. Keep tag tree + `role`/`itemprop` + alpha-only class tokens; drop id/data-*/digit-bearing classes so structurally-identical pages collide. Test BOTH directions (same-structure→equal, different-structure→differ). (`backend/app/skeleton.py`.)

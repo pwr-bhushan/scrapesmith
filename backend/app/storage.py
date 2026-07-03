@@ -1,0 +1,84 @@
+"""Persistence for uploads: get-or-create domain, write files to disk, insert rows.
+
+Files land at ./uploads/{batch_id}/{index}_{safe_filename}; the numeric prefix is the stable
+per-batch file index used by the render endpoint (avoids depending on DB row order).
+"""
+from __future__ import annotations
+
+import hashlib
+import uuid
+from pathlib import Path
+from typing import Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Domain, UploadBatch, UploadFile
+from app.skeleton import dom_skeleton_hash
+
+UPLOADS_DIR = Path("uploads")
+
+
+def _index_of(path: str) -> int:
+    try:
+        return int(Path(path).name.split("_", 1)[0])
+    except (ValueError, IndexError):
+        return 0
+
+
+async def get_or_create_domain(
+    session: AsyncSession, host: str, page_type: str, render_js: bool
+) -> Domain:
+    existing = (
+        await session.execute(
+            select(Domain).where(Domain.host == host, Domain.page_type == page_type)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+    domain = Domain(host=host, page_type=page_type, render_js=render_js)
+    session.add(domain)
+    await session.flush()
+    return domain
+
+
+async def create_batch_with_files(
+    session: AsyncSession, domain: Domain, files: list
+) -> UploadBatch:
+    batch = UploadBatch(domain_id=domain.id, file_count=len(files), status="pending")
+    session.add(batch)
+    await session.flush()
+
+    batch_dir = UPLOADS_DIR / str(batch.id)
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    for index, (name, data) in enumerate(files):
+        path = batch_dir / f"{index}_{name}"
+        path.write_bytes(data)
+        html = data.decode("utf-8", errors="replace")
+        session.add(
+            UploadFile(
+                batch_id=batch.id,
+                filename=name,
+                sha256=hashlib.sha256(data).hexdigest(),
+                dom_skeleton_hash=dom_skeleton_hash(html),
+                raw_html_path=str(path),
+            )
+        )
+    await session.flush()
+    return batch
+
+
+async def list_batch_files(session: AsyncSession, batch_id: uuid.UUID) -> list:
+    rows = (
+        await session.execute(select(UploadFile).where(UploadFile.batch_id == batch_id))
+    ).scalars().all()
+    return sorted(rows, key=lambda f: _index_of(f.raw_html_path))
+
+
+async def file_at_index(
+    session: AsyncSession, batch_id: uuid.UUID, index: int
+) -> Optional[UploadFile]:
+    for f in await list_batch_files(session, batch_id):
+        if _index_of(f.raw_html_path) == index:
+            return f
+    return None
