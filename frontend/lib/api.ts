@@ -89,11 +89,42 @@ export async function validatePick(body: {
   return res.json();
 }
 
+export interface InferResult {
+  type: string | null;
+  confidence: number;
+  source: string;
+  dq: Record<string, unknown>;
+}
+
+export async function infer(body: {
+  text?: string;
+  itemprop?: string;
+  data?: Record<string, string>;
+  label?: string;
+  use_llm?: boolean;
+}): Promise<InferResult> {
+  const res = await fetch(`${API_BASE}/infer`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`infer failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getPresets(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/presets`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`presets failed: ${res.status}`);
+  return (await res.json()).types;
+}
+
 export interface ConfigFieldInput {
   name: string;
   selector: string;
   scope: string;
   list_parent_selector?: string | null;
+  type?: string | null;
+  dq?: Record<string, unknown> | null;
 }
 
 export async function saveConfig(

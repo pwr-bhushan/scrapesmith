@@ -60,12 +60,12 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Side panel adds field on click (manual name); save/get config v1 (`routes/config.py`, `PickPopover`, `FieldPanel`)
 - Deferred: type auto-detect/presets + ✨ LLM (Phase 3); DQ/anchors (Phase 4)
 
-## Phase 3 — Inference + presets
+## Phase 3 — Inference + presets ✅ (2026-06-18) — plan: `.claude/plans/phase-3-inference.md`
 
-- [ ] `/infer`: microdata + JSON-LD → regex → label-proximity cascade
-- [ ] Field type presets library (`title`, `price`, `discount_pct`, ...)
-- [ ] Popover UI (5.3) with confidence + Change dropdown
-- [ ] ✨ "Ask AI" opt-in LLM classifier (never automatic)
+- [x] `/infer`: structured (itemprop/data-*) → text regex → label-proximity cascade (`app/infer.py`); JSON-LD value-match deferred
+- [x] Field type preset library (`app/presets.py`): title/price/discount_pct/rating/review_count/availability/image/url/date/description/location + custom, each with regex + default DQ + synonyms
+- [x] Popover UI (5.3): "Looks like TYPE (conf%)" + Change dropdown + value; field carries type + preset dq
+- [x] ✨ "Ask AI" opt-in LLM classifier — plumbed; honest `llm_unavailable` without ANTHROPIC_API_KEY (never automatic)
 
 ## Phase 4 — Parser + DQ + anchors
 
@@ -107,6 +107,13 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 3 — Inference COMPLETE (2026-06-18)**
+- Backend: 118 tests pass, ruff clean. New: `app/presets.py` (12 types + custom), `app/infer.py` (cascade + gated LLM), `routes/infer.py` (POST /infer, GET /presets).
+- Cascade tiers: structured 0.95 → regex 0.85 → label 0.70 → LLM 0.60 (opt-in). ✨ returns `llm_unavailable` without a key (honest, unblocked).
+- Field config now carries `type` + preset `dq` (DQ *engine* is Phase 4).
+- Frontend: PickPopover infers on open, shows type+confidence, Change dropdown, ✨ button; build + tsc green.
+- E2E: /infer price(itemprop)=0.95, 6%off=discount_pct 0.85, ✨ no-key=llm_unavailable.
 
 **Phase 2 — Click-to-select COMPLETE (2026-06-18)**
 - Backend: 112 tests pass, ruff clean. New: `selector.py` (ladder), `pick.py` (Playwright resolve), `routes/{pick,config}.py`, storage config helpers, overlay click/list-detect JS.

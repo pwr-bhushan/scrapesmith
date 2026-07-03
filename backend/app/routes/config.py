@@ -20,7 +20,8 @@ class ConfigField(BaseModel):
     selector: str
     scope: str = "single"  # "single" | "list"
     list_parent_selector: Optional[str] = None
-    type: Optional[str] = None  # filled by Phase 3 inference
+    type: Optional[str] = None  # Phase 3 inference
+    dq: Optional[dict] = None  # Phase 3 preset default; evaluated by the Phase 4 DQ engine
 
 
 class SaveConfigRequest(BaseModel):
