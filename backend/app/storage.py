@@ -10,10 +10,10 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Domain, UploadBatch, UploadFile
+from app.models import ConfigVersion, Domain, UploadBatch, UploadFile
 from app.skeleton import dom_skeleton_hash
 
 UPLOADS_DIR = Path("uploads")
@@ -82,3 +82,43 @@ async def file_at_index(
         if _index_of(f.raw_html_path) == index:
             return f
     return None
+
+
+async def create_config_version(
+    session: AsyncSession,
+    domain_id: uuid.UUID,
+    fields: list,
+    created_by: str = "user",
+    source_file_id: Optional[uuid.UUID] = None,
+) -> ConfigVersion:
+    """Insert the next config version for a domain (naive max+1; advisory-lock is Phase 7)."""
+    current_max = (
+        await session.execute(
+            select(func.max(ConfigVersion.version)).where(ConfigVersion.domain_id == domain_id)
+        )
+    ).scalar()
+    version = (current_max or 0) + 1
+    cv = ConfigVersion(
+        domain_id=domain_id,
+        version=version,
+        fields=fields,
+        created_by=created_by,
+        source_file_id=source_file_id,
+        parent_version=current_max,
+    )
+    session.add(cv)
+    await session.flush()
+    return cv
+
+
+async def latest_config_version(
+    session: AsyncSession, domain_id: uuid.UUID
+) -> Optional[ConfigVersion]:
+    return (
+        await session.execute(
+            select(ConfigVersion)
+            .where(ConfigVersion.domain_id == domain_id)
+            .order_by(ConfigVersion.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()

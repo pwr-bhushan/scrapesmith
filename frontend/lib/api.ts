@@ -50,3 +50,61 @@ export async function getBatch(id: string): Promise<BatchInfo> {
 export function renderUrl(batchId: string, index: number): string {
   return `${API_BASE}/batch/${batchId}/file/${index}/render`;
 }
+
+// ---- Phase 2: pick + config ----
+
+export interface Descriptor {
+  tag: string;
+  id?: string;
+  classes?: string[];
+  data?: Record<string, string>;
+  itemprop?: string;
+  role?: string;
+  landmark?: string | null;
+  nth_of_type?: number;
+}
+
+export interface ValidateResult {
+  resolves: boolean;
+  selector: string | null;
+  count: number;
+  values: string[];
+  scope: string;
+  list_parent_selector: string | null;
+}
+
+export async function validatePick(body: {
+  batch_id: string;
+  index: number;
+  descriptor: Descriptor;
+  scope: string;
+  list_parent_selector?: string | null;
+}): Promise<ValidateResult> {
+  const res = await fetch(`${API_BASE}/pick/validate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`validate failed: ${res.status}`);
+  return res.json();
+}
+
+export interface ConfigFieldInput {
+  name: string;
+  selector: string;
+  scope: string;
+  list_parent_selector?: string | null;
+}
+
+export async function saveConfig(
+  batchId: string,
+  fields: ConfigFieldInput[]
+): Promise<{ config_version_id: string; version: number; field_count: number }> {
+  const res = await fetch(`${API_BASE}/batch/${batchId}/config`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) throw new Error(`saveConfig failed: ${res.status}`);
+  return res.json();
+}

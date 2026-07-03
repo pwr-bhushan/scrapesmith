@@ -22,6 +22,11 @@ per-step approval. Do NOT stop and ask "ready to proceed?" between workflow step
 TESTS → IMPLEMENT → VERIFY → REVIEW → FIX → docs → save straight through. Present the plan once,
 then execute. Still pause only for genuine irreversible/destructive decisions or a real blocker.
 
+**Full-build autonomy (2026-06-18):** User authorized proceeding through ALL remaining phases (2→8)
+without approval between phases. Commit each phase on `dev` as it completes (durable progress across
+context resets). Make reasonable scope decisions up front and record them in the phase plan file
+rather than stopping to ask. Keep going until all phases in todo.md are done.
+
 **GATE deferral (2026-06-18):** Phase 0 live bench + GATE deferred to end-of-MVP (run during
 whole-app E2E testing). `bench.py` is self-contained; nothing downstream depends on running it.
 Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See phase-0 plan
@@ -58,3 +63,9 @@ Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See
 **Untrusted-HTML render safety (§14)** — three layers: (1) Playwright context `page.route("**/*")` aborts every non-`file://`/`data:` request (no SSRF/egress); (2) snapshot sanitized — strip `<script>`/`<noscript>`, inject strict CSP meta, our overlay is the only inline script; (3) frontend iframe `sandbox="allow-scripts"` WITHOUT `allow-same-origin` (overlay runs, can't touch parent). Never serve raw uploaded HTML to the browser.
 
 **`dom_skeleton_hash` is lossy by design** — drives clustering/dedup only (§10), NOT extraction correctness. Keep tag tree + `role`/`itemprop` + alpha-only class tokens; drop id/data-*/digit-bearing classes so structurally-identical pages collide. Test BOTH directions (same-structure→equal, different-structure→differ). (`backend/app/skeleton.py`.)
+
+**Sandboxed iframe ⇒ descriptor-based picking** — the render iframe is `sandbox="allow-scripts"` (no same-origin), so the parent can't read its DOM. Click-to-select works by the overlay computing an element *descriptor* (attrs are script-independent) and `postMessage`-ing to the parent; the backend regenerates + validates selectors against the RAW render. Don't try to transfer absolute DOM paths between the sanitized snapshot and the raw page — script removal shifts indices. Structural fallback uses `:nth-of-type` (same-tag count, script-robust), never `nth-child`. (`app/render.py` overlay, `app/selector.py`, `app/pick.py`.)
+
+**Persistent DB ⇒ tests must self-isolate** — the local Postgres isn't reset between runs, so tests that assert absolute state (e.g. `config version == 1`) break on re-run when a get-or-create domain accumulates rows. Use a unique key per test (e.g. `host=f"{uuid4().hex}.com"`). Gate on `url_reachable` as usual. (`tests/test_config_routes.py`.)
+
+**Playwright `locator()` accepts prefixed & plain CSS** — `page.locator("main .price")` and `page.locator("css=main .price")` both work; store selectors engine-prefixed (`css=`/`xpath=`) per §6 and pass straight to locator. `.count()` gives resolve cardinality (1 = unique single, N = list). (`app/pick.py`.)

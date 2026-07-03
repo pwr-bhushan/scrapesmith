@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import batch, upload
+from app.routes import batch, config, pick, upload
 
 app = FastAPI(title="scrapesmith", version="0.1.0")
 
@@ -24,3 +24,5 @@ async def health() -> dict:
 
 app.include_router(upload.router)
 app.include_router(batch.router)
+app.include_router(pick.router)
+app.include_router(config.router)

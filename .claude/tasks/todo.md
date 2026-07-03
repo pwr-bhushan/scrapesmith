@@ -51,13 +51,14 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Render file N in isolated egress-blocked Playwright context; sanitized + CSP + hover overlay; sandboxed iframe; Prev/Next (`app/render.py::render_snapshot`, `components/RenderFrame.tsx`)
 - Deferred to Phase 2: click-to-select, selector ladder, list detection, `/pick/validate`, popover
 
-## Phase 2 — Click-to-select + stability ladder
+## Phase 2 — Click-to-select + stability ladder ✅ (2026-06-18) — plan: `.claude/plans/phase-2-click-select.md`
 
-- [ ] Selection JS injected into browser context (our script only, strict CSP)
-- [ ] Selector stability ladder (id → data-* → itemprop/role → stable class root → 1-index fallback)
-- [ ] `/pick/validate` round-trips every selector through `locator()` before green check
-- [ ] List detection (§8.2): nearest ancestor with ≥3 similar children; show "N items"
-- [ ] Side panel adds field on click (manual name this phase); save config v1
+- [x] Selection JS in the overlay (our script only, existing strict CSP): click → descriptor + list detection → postMessage
+- [x] Selector stability ladder (`app/selector.py`, §8.1): id → data-* → itemprop/role → stable class under landmark → `:nth-of-type` fallback
+- [x] `/pick/validate` round-trips candidates through Playwright `locator()` on the raw file; first unique wins (`app/pick.py`, `routes/pick.py`)
+- [x] List detection (§8.2): overlay finds nearest ancestor with ≥3 similar children; parent-relative selector; count ≥2
+- [x] Side panel adds field on click (manual name); save/get config v1 (`routes/config.py`, `PickPopover`, `FieldPanel`)
+- Deferred: type auto-detect/presets + ✨ LLM (Phase 3); DQ/anchors (Phase 4)
 
 ## Phase 3 — Inference + presets
 
@@ -106,6 +107,13 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 2 — Click-to-select COMPLETE (2026-06-18)**
+- Backend: 112 tests pass, ruff clean. New: `selector.py` (ladder), `pick.py` (Playwright resolve), `routes/{pick,config}.py`, storage config helpers, overlay click/list-detect JS.
+- Architecture: descriptor-based, server-validated — overlay posts element descriptor (script-independent attrs); `/pick/validate` renders raw file and tests candidates via `locator()`. Structural fallback uses `:nth-of-type` (script-robust).
+- E2E proof: click price on amazon `before.html` → `css=[data-price-amount='149900']` resolves to 1 = "₹1,49,900"; config saved v1, read back.
+- Frontend: `PickPopover` (value + scope + name + Check/Confirm), `FieldPanel` (fields + Save), `RenderFrame` postMessage wiring. build + tsc green.
+- Test isolation lesson: unique domain host per test (persistent DB accumulates config versions).
 
 **Phase 1 — Upload + Render COMPLETE (2026-06-18)**
 - Backend: 101 tests pass, ruff clean. New modules: `skeleton.py`, `upload.py`, `storage.py`, `routes/{upload,batch}.py`, `render.py::render_snapshot`.

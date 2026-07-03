@@ -16,9 +16,77 @@ _CSP = (
     "img-src data:; font-src data:"
 )
 
-# Hover-outline overlay (Phase 1). Click-to-select is Phase 2.
+# Overlay: hover outline + click-to-select. On click it builds an element descriptor + detects a
+# list container (§8.2) and postMessages to the parent app, which calls /pick/validate.
 _OVERLAY_JS = """
 (function () {
+  var LANDMARKS = ['main', 'nav', 'header', 'footer', 'article', 'section'];
+  var STABLE = /^[a-zA-Z]{3,}(?:-[a-zA-Z]+)*$/;
+
+  function stableClasses(el) {
+    return Array.prototype.filter.call(el.classList || [], function (c) { return STABLE.test(c); });
+  }
+  function landmarkOf(el) {
+    for (var n = el; n && n.tagName; n = n.parentElement) {
+      var t = n.tagName.toLowerCase();
+      if (LANDMARKS.indexOf(t) !== -1) return t;
+    }
+    return null;
+  }
+  function nthOfType(el) {
+    var i = 1, tag = el.tagName;
+    for (var s = el.previousElementSibling; s; s = s.previousElementSibling) {
+      if (s.tagName === tag) i++;
+    }
+    return i;
+  }
+  function dataAttrs(el) {
+    var d = {};
+    Array.prototype.forEach.call(el.attributes || [], function (a) {
+      if (a.name.indexOf('data-') === 0) d[a.name] = a.value;
+    });
+    return d;
+  }
+  function descriptor(el) {
+    return {
+      tag: el.tagName.toLowerCase(),
+      id: el.id || '',
+      classes: stableClasses(el),
+      data: dataAttrs(el),
+      itemprop: el.getAttribute('itemprop') || '',
+      role: el.getAttribute('role') || '',
+      landmark: landmarkOf(el),
+      nth_of_type: nthOfType(el)
+    };
+  }
+  // §8.2: nearest ancestor container whose children (>=3) share tag + >=60% stable-class overlap
+  function listParent(el) {
+    for (var n = el.parentElement; n && n.tagName; n = n.parentElement) {
+      var kids = Array.prototype.filter.call(n.children, function (c) { return c.tagName; });
+      if (kids.length < 3) continue;
+      var byTag = {};
+      kids.forEach(function (k) { byTag[k.tagName] = (byTag[k.tagName] || 0) + 1; });
+      var domTag = Object.keys(byTag).sort(function (a, b) { return byTag[b] - byTag[a]; })[0];
+      var group = kids.filter(function (k) { return k.tagName === domTag; });
+      if (group.length < 3) continue;
+      var base = stableClasses(group[0]);
+      var ok = group.filter(function (k) {
+        var cs = stableClasses(k);
+        if (!base.length && !cs.length) return true;
+        var shared = base.filter(function (c) { return cs.indexOf(c) !== -1; }).length;
+        var denom = Math.max(base.length, cs.length) || 1;
+        return shared / denom >= 0.6;
+      });
+      if (ok.length >= 3) {
+        var lm = landmarkOf(n);
+        var cls = stableClasses(n)[0];
+        var sel = (lm ? lm + ' ' : '') + n.tagName.toLowerCase() + (cls ? '.' + cls : '');
+        return { selector: sel, count: group.length };
+      }
+    }
+    return null;
+  }
+
   var last = null;
   document.addEventListener('mouseover', function (e) {
     if (last) { last.style.outline = last.__ss_prev || ''; }
@@ -28,6 +96,17 @@ _OVERLAY_JS = """
   }, true);
   document.addEventListener('mouseout', function () {
     if (last) { last.style.outline = last.__ss_prev || ''; last = null; }
+  }, true);
+  document.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var el = e.target;
+    window.parent.postMessage({
+      type: 'scrapesmith-pick',
+      descriptor: descriptor(el),
+      text: (el.innerText || '').trim().slice(0, 120),
+      listParent: listParent(el)
+    }, '*');
   }, true);
 })();
 """
