@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import batch, config, infer, parse, pick, upload
+from app.routes import batch, config, infer, jobs, parse, pick, upload
 
 app = FastAPI(title="scrapesmith", version="0.1.0")
 
@@ -28,3 +28,4 @@ app.include_router(pick.router)
 app.include_router(config.router)
 app.include_router(infer.router)
 app.include_router(parse.router)
+app.include_router(jobs.router)

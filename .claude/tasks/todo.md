@@ -74,13 +74,13 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Capture field **anchor** (value + descriptor fingerprint) at Confirm; stored in config field
 - [x] Canary panel (5.5): `POST /parse/canary` runs config on one file, stores parse_result, returns per-field value/DQ/anchor_ok (`CanaryPanel`); Re-pick = same picker screen
 
-## Phase 5 — Async batch + per-field rates + export
+## Phase 5 — Async batch + per-field rates + export ✅ (2026-06-18) — plan: `.claude/plans/phase-5-batch-export.md`
 
-- [ ] `POST /parse/batch` enqueues arq job over the Playwright pool
-- [ ] `GET /jobs/{id}/stream` SSE progress
-- [ ] Per-field failure rate + item-level flagged_ratio
-- [ ] Batch results screen (5.8)
-- [ ] CSV (one row per list item, `__file`/`__item_index` keys) + nested JSON export
+- [x] `POST /parse/batch` enqueues an arq job; `app/batch_parse.py::run_batch` parses each file, stores parse_result, updates job.progress
+- [x] `GET /jobs/{id}` + `GET /jobs/{id}/stream` (SSE) progress
+- [x] Per-field failure rate + item-level flagged_ratio (`app/aggregate.py`)
+- [x] Batch results screen (5.8) with progress bar (`BatchResults`)
+- [x] CSV (one row per list item, `__file`/`__item_index`) + nested JSON export (`app/export.py`, `/batch/{id}/export.csv|.json`)
 
 ## Phase 6 — Heal (cluster → propose → value-first review)
 
@@ -107,6 +107,12 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 5 — Async batch + export COMPLETE (2026-06-18)**
+- Backend: 134 tests pass, ruff clean. New: `app/batch_parse.py` (run_batch + gather_results), `app/aggregate.py` (rates), `app/export.py` (CSV/JSON), `routes/jobs.py`, `worker.py::batch_parse` arq task.
+- Full async E2E through Redis + real arq worker: 2-file zip → job queued→running→done (progress 0→1→2) → price failure_rate 0.5 (abc fails number DQ) → CSV with __file/__item_index.
+- CSV bug fixed: empty list gave 0 rows (`max([0])`); floored to 1 row/file.
+- Frontend: BatchResults (progress bar, rate table, export links); build + tsc green.
 
 **Phase 4 — Parser + DQ + Anchors COMPLETE (2026-06-18)**
 - Backend: 129 tests pass, ruff clean. New: `app/dq.py` (6-status engine), `app/parser.py` (locator-based, single+list), `routes/parse.py` (canary + anchor check).

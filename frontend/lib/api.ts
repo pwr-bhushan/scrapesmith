@@ -160,3 +160,56 @@ export async function canary(batchId: string, index: number): Promise<CanaryResu
   if (!res.ok) throw new Error(`canary failed (${res.status}): ${await res.text()}`);
   return res.json();
 }
+
+// ---- Phase 5: async batch + export ----
+
+export interface JobStatus {
+  job_id: string;
+  state: string;
+  progress: { done: number; total: number; phase: string };
+  error: string | null;
+}
+
+export async function startBatch(batchId: string): Promise<{ job_id: string; config_version: number }> {
+  const res = await fetch(`${API_BASE}/parse/batch`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ batch_id: batchId }),
+  });
+  if (!res.ok) throw new Error(`startBatch failed (${res.status}): ${await res.text()}`);
+  return res.json();
+}
+
+export async function jobStatus(jobId: string): Promise<JobStatus> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`jobStatus failed: ${res.status}`);
+  return res.json();
+}
+
+export interface FieldRate {
+  failures: number;
+  in_scope: number;
+  failure_rate: number;
+}
+
+export interface BatchResultsData {
+  config_version: number;
+  file_count: number;
+  field_rates: Record<string, FieldRate>;
+  flagged: { file: string; flagged_ratio: number }[];
+  rows: { file: string; data: Record<string, unknown> }[];
+}
+
+export async function batchResults(batchId: string): Promise<BatchResultsData> {
+  const res = await fetch(`${API_BASE}/batch/${batchId}/results`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`results failed: ${res.status}`);
+  return res.json();
+}
+
+export function exportCsvUrl(batchId: string): string {
+  return `${API_BASE}/batch/${batchId}/export.csv`;
+}
+
+export function exportJsonUrl(batchId: string): string {
+  return `${API_BASE}/batch/${batchId}/export.json`;
+}
