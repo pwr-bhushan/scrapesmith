@@ -16,7 +16,7 @@ from app.db import SessionLocal, get_session
 from app.export import csv_rows, json_tree
 from app.models import Job, UploadBatch
 from app.queue import get_pool
-from app.storage import latest_config_version
+from app.storage import effective_config_version
 
 router = APIRouter()
 
@@ -30,7 +30,7 @@ async def parse_batch(req: BatchRequest, session: AsyncSession = Depends(get_ses
     batch = await session.get(UploadBatch, req.batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="batch not found")
-    cv = await latest_config_version(session, batch.domain_id)
+    cv = await effective_config_version(session, batch)
     if cv is None:
         raise HTTPException(status_code=400, detail="no config saved for this domain")
 
@@ -78,7 +78,7 @@ async def _results_for_batch(session: AsyncSession, batch_id: uuid.UUID):
     batch = await session.get(UploadBatch, batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="batch not found")
-    cv = await latest_config_version(session, batch.domain_id)
+    cv = await effective_config_version(session, batch)
     if cv is None:
         raise HTTPException(status_code=400, detail="no config for this domain")
     return cv, await gather_results(session, batch_id, cv.id)

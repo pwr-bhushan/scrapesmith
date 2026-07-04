@@ -261,3 +261,46 @@ export async function healAccept(
   if (!res.ok) throw new Error(`healAccept failed (${res.status}): ${await res.text()}`);
   return res.json();
 }
+
+// ---- Phase 7: versions ----
+
+export interface VersionInfo {
+  id: string;
+  version: number;
+  created_by: string | null;
+  parent_version: number | null;
+  field_count: number;
+}
+
+export async function listVersions(domainId: string): Promise<VersionInfo[]> {
+  const res = await fetch(`${API_BASE}/domains/${domainId}/versions`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`listVersions failed: ${res.status}`);
+  return (await res.json()).versions;
+}
+
+export interface VersionDiff {
+  added: string[];
+  removed: string[];
+  changed: Record<string, Record<string, [unknown, unknown]>>;
+}
+
+export async function diffVersions(domainId: string, a: number, b: number): Promise<VersionDiff> {
+  const res = await fetch(`${API_BASE}/domains/${domainId}/diff?a=${a}&b=${b}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`diff failed: ${res.status}`);
+  return (await res.json()).diff;
+}
+
+export async function pinBatch(
+  batchId: string,
+  version: number
+): Promise<{ pinned_version: number }> {
+  const res = await fetch(`${API_BASE}/batch/${batchId}/pin`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ version }),
+  });
+  if (!res.ok) throw new Error(`pin failed: ${res.status}`);
+  return res.json();
+}

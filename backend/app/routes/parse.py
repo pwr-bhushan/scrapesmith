@@ -11,7 +11,7 @@ from app.db import get_session
 from app.dq import normalize
 from app.models import Domain, ParseResult, UploadBatch
 from app.parser import parse_config
-from app.storage import file_at_index, latest_config_version
+from app.storage import effective_config_version, file_at_index
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ async def canary(req: CanaryRequest, session: AsyncSession = Depends(get_session
     if uf is None:
         raise HTTPException(status_code=404, detail="file not found")
     batch = await session.get(UploadBatch, req.batch_id)
-    cv = await latest_config_version(session, batch.domain_id)
+    cv = await effective_config_version(session, batch)
     if cv is None:
         raise HTTPException(status_code=400, detail="no config saved for this domain")
     domain = await session.get(Domain, batch.domain_id)

@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ConfigVersion, Domain, UploadBatch, UploadFile
@@ -91,7 +91,12 @@ async def create_config_version(
     created_by: str = "user",
     source_file_id: Optional[uuid.UUID] = None,
 ) -> ConfigVersion:
-    """Insert the next config version for a domain (naive max+1; advisory-lock is Phase 7)."""
+    """Insert the next config version for a domain, computing version under a per-domain advisory
+    lock (§11) so concurrent heals/saves serialize instead of colliding on the unique constraint."""
+    # xact-scoped advisory lock keyed on the domain uuid text; released at commit/rollback
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:d))"), {"d": str(domain_id)}
+    )
     current_max = (
         await session.execute(
             select(func.max(ConfigVersion.version)).where(ConfigVersion.domain_id == domain_id)
@@ -120,5 +125,38 @@ async def latest_config_version(
             .where(ConfigVersion.domain_id == domain_id)
             .order_by(ConfigVersion.version.desc())
             .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def list_config_versions(session: AsyncSession, domain_id: uuid.UUID) -> list:
+    return list(
+        (
+            await session.execute(
+                select(ConfigVersion)
+                .where(ConfigVersion.domain_id == domain_id)
+                .order_by(ConfigVersion.version.asc())
+            )
+        ).scalars()
+    )
+
+
+async def effective_config_version(session: AsyncSession, batch) -> Optional[ConfigVersion]:
+    """The config a batch runs against: pinned version if set, else the domain's latest (§11)."""
+    if batch.config_version_id is not None:
+        cv = await session.get(ConfigVersion, batch.config_version_id)
+        if cv is not None:
+            return cv
+    return await latest_config_version(session, batch.domain_id)
+
+
+async def config_version_at(
+    session: AsyncSession, domain_id: uuid.UUID, version: int
+) -> Optional[ConfigVersion]:
+    return (
+        await session.execute(
+            select(ConfigVersion).where(
+                ConfigVersion.domain_id == domain_id, ConfigVersion.version == version
+            )
         )
     ).scalar_one_or_none()

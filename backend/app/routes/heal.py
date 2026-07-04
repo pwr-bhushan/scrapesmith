@@ -13,7 +13,7 @@ from app.batch_parse import gather_results
 from app.db import get_session
 from app.heal import cluster_failures, failing_fields, post_check, select_provider
 from app.models import Domain, UploadBatch
-from app.storage import create_config_version, latest_config_version
+from app.storage import create_config_version, effective_config_version
 
 router = APIRouter()
 
@@ -57,7 +57,7 @@ async def heal_propose(req: HealRequest, session: AsyncSession = Depends(get_ses
     batch = await session.get(UploadBatch, req.batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="batch not found")
-    cv = await latest_config_version(session, batch.domain_id)
+    cv = await effective_config_version(session, batch)
     if cv is None:
         raise HTTPException(status_code=400, detail="no config for this domain")
     domain = await session.get(Domain, batch.domain_id)
@@ -106,7 +106,7 @@ async def heal_accept(req: AcceptRequest, session: AsyncSession = Depends(get_se
     batch = await session.get(UploadBatch, req.batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="batch not found")
-    cv = await latest_config_version(session, batch.domain_id)
+    cv = await effective_config_version(session, batch)
     if cv is None:
         raise HTTPException(status_code=400, detail="no config for this domain")
     if not req.accepted:

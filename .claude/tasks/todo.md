@@ -91,11 +91,12 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Drift UI (5.6) + value-first review (5.7) with suspect flagging (`HealReview`); `/heal/propose` + `/heal/accept` (new config_version, created_by=llm-heal)
 - [x] Anti-loop: cluster-once per hash; suspect/still_broken never auto-applied. Live model wiring = same deferred GATE dependency (post-check tested with FakeProvider).
 
-## Phase 7 — Versioning
+## Phase 7 — Versioning ✅ (2026-06-18) — plan: inline (small)
 
-- [ ] Version assignment under `pg_advisory_xact_lock(domain_id)`
-- [ ] Version list per domain + diff view
-- [ ] Pin batch to specific version (URL param + advanced UI)
+- [x] Version assignment under `pg_advisory_xact_lock(hashtext(domain_id))` in `create_config_version` (§11); concurrency test proves 1,2 no collision
+- [x] Version list per domain (`GET /domains/{id}/versions`) + diff view (`app/versioning.py`, `GET /domains/{id}/diff?a&b`)
+- [x] Pin batch to specific version (`POST /batch/{id}/pin`); `effective_config_version` (pinned else latest) now drives parse/canary/results/heal
+- [x] Frontend `VersionPanel`: list, diff last two, pin
 
 ## Phase 8 — Advanced mode polish
 
@@ -107,6 +108,11 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 ---
 
 ## Review
+
+**Phase 7 — Versioning COMPLETE (2026-06-18)**
+- Backend: 142 tests pass, ruff clean. `create_config_version` now takes `pg_advisory_xact_lock(hashtext(domain_id))` (§11); `app/versioning.py` diff; `routes/versions.py` (list/diff/pin); `effective_config_version` makes pin actually drive parse/canary/results/heal.
+- Advisory lock proven by a concurrency test: two `asyncio.gather`'d creates → versions [1,2], no unique-constraint collision.
+- Frontend: VersionPanel (list, diff last two, pin).
 
 **Phase 6 — Heal COMPLETE (2026-06-18)** — the headline feature
 - Backend: 139 tests pass, ruff clean. New: `app/heal.py` (trigger/cluster/post-check/provider select), `routes/heal.py` (propose/accept). Reuses spike heal providers + cleaner.

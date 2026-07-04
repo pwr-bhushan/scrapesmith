@@ -1,6 +1,7 @@
 import BatchResults from "@/components/BatchResults";
 import HealReview from "@/components/HealReview";
 import RenderFrame from "@/components/RenderFrame";
+import VersionPanel from "@/components/VersionPanel";
 
 // Next 15: params is async.
 export default async function PickPage({
@@ -15,6 +16,7 @@ export default async function PickPage({
       <RenderFrame batchId={batchId} />
       <BatchResults batchId={batchId} />
       <HealReview batchId={batchId} />
+      <VersionPanel batchId={batchId} />
     </main>
   );
 }
