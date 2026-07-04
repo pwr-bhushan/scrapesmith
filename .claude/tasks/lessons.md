@@ -69,3 +69,13 @@ Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See
 **Persistent DB ⇒ tests must self-isolate** — the local Postgres isn't reset between runs, so tests that assert absolute state (e.g. `config version == 1`) break on re-run when a get-or-create domain accumulates rows. Use a unique key per test (e.g. `host=f"{uuid4().hex}.com"`). Gate on `url_reachable` as usual. (`tests/test_config_routes.py`.)
 
 **Playwright `locator()` accepts prefixed & plain CSS** — `page.locator("main .price")` and `page.locator("css=main .price")` both work; store selectors engine-prefixed (`css=`/`xpath=`) per §6 and pass straight to locator. `.count()` gives resolve cardinality (1 = unique single, N = list). (`app/pick.py`.)
+
+**arq background task pattern** — the arq worker is a separate process (`.venv/bin/arq app.worker.WorkerSettings`). Factor real work into a plain async fn (`run_batch`) callable directly in tests; the arq task is a thin wrapper that opens its OWN `SessionLocal` and marks the Job `failed` on exception (else it dies silently). Enqueue from the API via `create_pool` + `enqueue_job(name, *args)`; args must be JSON-serializable (pass uuids as str). (`app/worker.py`, `app/batch_parse.py`, `routes/jobs.py`.)
+
+**Per-domain advisory lock for versioning (§11)** — `create_config_version` runs `SELECT pg_advisory_xact_lock(hashtext(:domain_id_text))` before computing `max(version)+1`, so concurrent saves/heals serialize instead of colliding on `unique(domain_id, version)`. Proven by a test that `asyncio.gather`s two creates for the same domain and asserts versions `[1,2]`. (`app/storage.py`.)
+
+**Anchor-correctness belongs in the post-check, not the prompt** — heal validates a proposed selector in code (§10 steps 1–6): valid prefix → resolves → DQ → not-too-positional (`:nth-child`/>1 index) → **anchor match (normalized)** → 2 more cluster files. A proposal that passes DQ but diverges from the anchor is `suspect`, never auto-applied. This makes heal robust even though the reused spike prompt predates anchors. (`app/heal.py`.)
+
+**`effective_config_version` = pinned else latest** — a batch runs against `batch.config_version_id` when set (pin, §11), else the domain's latest. Route parse/canary/results/heal through it so pinning actually takes effect. `save_config`/`heal_accept` set it to the new version (== latest at that moment). (`app/storage.py`.)
+
+**Full-build status (2026-06-18):** Phases 0.5→8 all shipped on `dev` (commits db06335…960efbc). 143 backend tests, ruff clean, frontend build+tsc green. Only deferred item: the live heal/bench GATE (needs ANTHROPIC_API_KEY + Ollama) — run at end-of-MVP E2E. See [[full-build-autonomy]] note above.
