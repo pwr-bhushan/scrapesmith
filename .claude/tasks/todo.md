@@ -98,16 +98,22 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 - [x] Pin batch to specific version (`POST /batch/{id}/pin`); `effective_config_version` (pinned else latest) now drives parse/canary/results/heal
 - [x] Frontend `VersionPanel`: list, diff last two, pin
 
-## Phase 8 — Advanced mode polish
+## Phase 8 — Advanced mode polish ✅ (2026-06-18)
 
-- [ ] Toggle in header
-- [ ] Editable selectors, types, DQ rules
-- [ ] Raw JSON config editor with validation
-- [ ] Custom selector / custom regex flows
+- [x] Advanced toggle (`AdvancedPanel` collapsible)
+- [x] Editable selectors/types/DQ via raw JSON editor
+- [x] Raw JSON config editor with client validation (parse + shape check) → saveConfig
+- [x] Custom selector flow: `POST /selector/check` resolves a hand-written selector; custom DQ edited inline in the JSON
 
 ---
 
 ## Review
+
+**Phase 8 — Advanced mode COMPLETE (2026-06-18)** — ALL PHASES DONE
+- Backend: 143 tests pass, ruff clean. `POST /selector/check` (raw selector → count+values).
+- Frontend: AdvancedPanel (custom selector checker + raw JSON config editor w/ validation); build + tsc green.
+- MVP (Phases 0.5–5) + headline heal (6) + versioning (7) + advanced (8) all shipped on `dev`.
+- Remaining deferred: live heal/bench GATE (needs ANTHROPIC_API_KEY + Ollama) — run at end-of-MVP E2E.
 
 **Phase 7 — Versioning COMPLETE (2026-06-18)**
 - Backend: 142 tests pass, ruff clean. `create_config_version` now takes `pg_advisory_xact_lock(hashtext(domain_id))` (§11); `app/versioning.py` diff; `routes/versions.py` (list/diff/pin); `effective_config_version` makes pin actually drive parse/canary/results/heal.

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Domain, UploadBatch
-from app.pick import resolve_many
+from app.pick import resolve_many, resolve_on_file
 from app.selector import list_candidates, single_candidates
 from app.storage import file_at_index
 
@@ -23,6 +23,24 @@ class ValidateRequest(BaseModel):
     descriptor: dict[str, Any]
     scope: str = "single"  # "single" | "list"
     list_parent_selector: Optional[str] = None
+
+
+class CheckRequest(BaseModel):
+    batch_id: uuid.UUID
+    index: int
+    selector: str
+
+
+@router.post("/selector/check")
+async def check_selector(req: CheckRequest, session: AsyncSession = Depends(get_session)):
+    """Advanced mode: resolve a hand-written selector against a file (§8.1 round-trip)."""
+    uf = await file_at_index(session, req.batch_id, req.index)
+    if uf is None:
+        raise HTTPException(status_code=404, detail="file not found")
+    batch = await session.get(UploadBatch, req.batch_id)
+    domain = await session.get(Domain, batch.domain_id)
+    r = await resolve_on_file(uf.raw_html_path, req.selector, bool(domain and domain.render_js))
+    return {"count": r["count"], "values": r["values"], "resolves": r["count"] > 0}
 
 
 @router.post("/pick/validate")

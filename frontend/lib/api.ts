@@ -51,6 +51,31 @@ export function renderUrl(batchId: string, index: number): string {
   return `${API_BASE}/batch/${batchId}/file/${index}/render`;
 }
 
+export interface SavedConfigView {
+  version: number | null;
+  fields: ConfigFieldInput[];
+}
+
+export async function getConfig(batchId: string): Promise<SavedConfigView> {
+  const res = await fetch(`${API_BASE}/batch/${batchId}/config`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`getConfig failed: ${res.status}`);
+  return res.json();
+}
+
+export async function checkSelector(
+  batchId: string,
+  index: number,
+  selector: string
+): Promise<{ count: number; values: string[]; resolves: boolean }> {
+  const res = await fetch(`${API_BASE}/selector/check`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ batch_id: batchId, index, selector }),
+  });
+  if (!res.ok) throw new Error(`checkSelector failed: ${res.status}`);
+  return res.json();
+}
+
 // ---- Phase 2: pick + config ----
 
 export interface Descriptor {

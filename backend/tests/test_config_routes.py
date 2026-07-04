@@ -87,3 +87,18 @@ async def test_pick_validate_generates_resolving_selector():
     assert body["count"] == 1
     assert body["values"] == ["9.99"]
     assert "itemprop='price'" in body["selector"]
+
+
+@pg
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_selector_check_custom():
+    async with _client() as c:
+        batch_id = await _upload(c)
+        r = await c.post(
+            "/selector/check",
+            json={"batch_id": batch_id, "index": 0, "selector": "css=#title"},
+        )
+    body = r.json()
+    assert body["resolves"] is True
+    assert body["count"] == 1
+    assert body["values"] == ["Widget"]

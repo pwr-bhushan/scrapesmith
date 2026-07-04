@@ -1,3 +1,4 @@
+import AdvancedPanel from "@/components/AdvancedPanel";
 import BatchResults from "@/components/BatchResults";
 import HealReview from "@/components/HealReview";
 import RenderFrame from "@/components/RenderFrame";
@@ -17,6 +18,7 @@ export default async function PickPage({
       <BatchResults batchId={batchId} />
       <HealReview batchId={batchId} />
       <VersionPanel batchId={batchId} />
+      <AdvancedPanel batchId={batchId} index={0} />
     </main>
   );
 }
