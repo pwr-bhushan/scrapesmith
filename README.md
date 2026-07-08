@@ -90,7 +90,10 @@ frontend/     Next.js app — upload, click-to-select picker, canary,
 
 ## Docs & status
 
-- **Design spec** (data model, DQ engine, heal contract, security, wireframes): [`.claude/plans/self-healing-parser.md`](.claude/plans/self-healing-parser.md)
+- **[Architecture](docs/architecture.md)** — how it's built and why: the two core ideas, components, request flow, data model, key mechanisms.
+- **[API reference](docs/api.md)** — every endpoint with request/response shapes (interactive at `/docs`).
+- **[Deployment & operations](docs/deployment.md)** — run locally, configure, migrate, test, and what to harden for production.
+- **Full design spec** (every decision, wireframes, security model): [`.claude/plans/self-healing-parser.md`](.claude/plans/self-healing-parser.md)
 - **Phase plans** (de-risk spike → advanced mode): [`.claude/plans/`](.claude/plans/)
 
 Active development on `dev`. Implemented in phases 0.5 → 8 (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode); backend 143 tests passing and lint clean, frontend type-checked and building. The one deferred step is the live heal **GATE** (real drift pairs + a running model) — all model-independent code is done, and heal degrades honestly to `model: "unavailable"` when no provider is configured.
