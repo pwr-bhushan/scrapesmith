@@ -280,6 +280,108 @@ Run the bench, commit `artifacts/baseline.json` + `.md`. Record `anchor_correct_
 
 **Exit:** a committed baseline number with a reproducible command.
 
+**RESULT (2026-09-05, commit e808bbe)** — 21 cases / 48 fields, `ollama/qwen2.5-coder:7b`:
+
+| metric | value |
+|---|---|
+| `healed_rate` | **95.83%** (46/48) |
+| `anchor_correct_rate` | 95.83% |
+| `resolve_but_wrong_rate` | 0.00% |
+| `no_proposal_rate` | 0.00% |
+
+Per drift type: `class_rename` 100% (12), `tag_swap` 100% (10), `attr_strip` 100% (7),
+`combo` 91.7% (12), `wrapper_insert` 80% (5).
+
+---
+
+## Phase B1b — **NEW, BLOCKING: the baseline is saturated** (~2h)
+
+**Decided 2026-09-05 — add decoys to the base pages.**
+
+B1.4 produced a number that cannot serve as a *before* measurement, for two reasons:
+
+1. **4.17% of headroom.** Heal memory would have to fix both remaining failures
+   (`article__combo/headline`, `event__wrapper_insert/venue`) to move the metric at all, and
+   n=2 makes any movement indistinguishable from noise.
+2. **`resolve_but_wrong_rate` is 0 by construction, not by merit.** Every anchor value appears in
+   *exactly one* element of its base page. There is no wrong-but-DQ-valid value available to pick,
+   so the guard metric cannot register anything — and a strategy that ignores the DOM entirely and
+   greps for the anchor string scores 100%. The benchmark measures string search, not selector repair.
+
+The mutations are not the problem; `mutate.py` and `generate.py` stay as they are. The base pages
+are: they were written clean, and clean pages lack the ambiguity that makes real drift hard.
+
+**Fix:** rewrite the 4 base pages so each field has 2–4 plausible competitors that pass its DQ regex.
+
+| page | field | decoys to add |
+|---|---|---|
+| product | price | struck-through MRP `₹1,69,900`, EMI line `₹12,491`, "also viewed" rail price |
+| product | rating | review-count-as-rating `4.2` in the rail, a "4.8" seller rating |
+| product | title | `<h1>` in the "also viewed" rail, breadcrumb tail |
+| article | headline | related-story `<h1>`, newsletter promo heading |
+| article | author | editor credit, photo-credit byline |
+| article | read_minutes | comment count, section number |
+| job | salary | a second range in "similar jobs", an equity figure |
+| job | company | recruiter agency name, parent-company line |
+| job | job_title | "similar jobs" titles |
+| event | ticket_price | tiered pricing (early-bird, VIP), a "from ₹X" teaser |
+| event | venue | a second venue in an "other dates" block |
+| event | event_name | series name, sponsor heading |
+
+**Rejected alternatives:**
+- *Real saved pages* — licensing question for a public portfolio repo; 300–800KB pages make cleaner
+  truncation the dominant failure mode, which measures the cleaner rather than the heal; not
+  reproducibly re-acquirable.
+- *Harsher mutations only* — raises structural difficulty without creating ambiguity. With one
+  unique matching value the grep strategy still wins and `resolve_but_wrong_rate` stays pinned at 0.
+- *Keep 95.8% and re-aim B2 at cost* — abandons the claim actually worth testing.
+
+**Second-order reason this is the right fix, not just a harder one:** decoys are precisely what a
+retrieved past heal can disambiguate ("on this site the price is the un-struck one in
+`.price-block`"). On the current corpus a few-shot neighbour has nothing to teach, so B2 would be
+measuring a mechanism with no available mechanism of action. B1b is what makes B2 falsifiable.
+
+**Guard against over-correcting:** the anchor must stay uniquely *identifiable from structure* even
+though it is no longer uniquely identifiable from text. Decoys go in sibling/aside containers with
+their own class names — never inside the field's own container — so a correct selector still exists.
+`generate.py` gains an assertion that the old selector resolves to exactly 1 element on
+`before.html` (it already checks match; tighten to count == 1), which fails loudly if a decoy lands
+in the wrong place.
+
+**Exit:** regenerated corpus, re-run baseline, both numbers reported side by side (soft corpus
+95.83% preserved in `artifacts/` and git history; hard corpus = the real *before*). If
+`resolve_but_wrong_rate` is still 0 on the hard corpus, the decoys did not work and B1b is not done.
+
+**RESULT (2026-09-05) — gate met.** Same 20 cases / 46 drifted fields; only the difficulty moved.
+
+| metric | soft corpus | hard corpus |
+|---|---|---|
+| `healed_rate` | 95.83% | **91.67%** |
+| `anchor_correct_rate` | 95.83% | 91.67% |
+| `resolve_but_wrong_rate` | 0.00% *(pinned)* | **2.08%** *(live)* |
+| `no_proposal_rate` | 0.00% | 0.00% |
+
+Per drift type: `class_rename` 100% (12), `attr_strip` 100% (7), `combo` 91.7% (12),
+`tag_swap` 80% (10, was 100), `wrapper_insert` 80% (5).
+
+The guard metric is the point. `product__combo/price` — the model proposed `div.c0929-price`,
+resolving to `₹2,999`, the **header promo strip** ("₹2,999 off with HDFC cards"). It matches the
+price regex, so DQ returned `ok`; the anchor check caught it and gated the proposal to `suspect`.
+That is §10's whole thesis, now reproducible on the bench rather than asserted in the README.
+
+The other three failures are all `still_broken`/`empty` — the model proposed a selector that
+resolves to nothing (`div.venue-block > div.venue-name` after a `span`→`div` swap that it
+half-tracked). No wrong values shipped.
+
+**Confirmed while reading the output:** `class_rename` renames *every* class in the page, not just
+the target's. Worth recording because the opposite would have been a giveaway — a lone
+hash-shaped class name marking the answer.
+
+**Remaining weakness, carried into B2:** headroom is 8.33% (4 failures of 48). Better than 4.17%,
+still thin. A B2 result of "+2pp" would be 1 field and indistinguishable from noise; the k-sweep
+needs to show a consistent trend across k ∈ {0,1,3,5}, and a movement in `resolve_but_wrong_rate`,
+before it is worth reporting as lift.
+
 ---
 
 ## Phase B2 — Heal memory (~5h)

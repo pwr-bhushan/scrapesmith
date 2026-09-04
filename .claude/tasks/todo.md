@@ -147,10 +147,28 @@ Per drift type: `attr_strip` 100% (n=7), `class_rename` 100% (n=12), `tag_swap` 
 `article__combo/headline`, `event__wrapper_insert/venue`.
 
 ### B1b — Harden the corpus (baseline is saturated)
-- [ ] **The corpus is too easy to measure B2 against.** Every anchor value is globally unique in its
-      base page, so selector repair degenerates into string search. 4.17% of headroom cannot show
-      lift from heal memory, and `resolve_but_wrong_rate` is structurally pinned at 0 — there is no
-      wrong-but-plausible value in the page to pick. Decision pending: add decoys to the base pages.
+**Why:** every anchor value is globally unique in its base page, so selector repair degenerates into
+string search. 4.17% of headroom cannot show lift from heal memory, and `resolve_but_wrong_rate` is
+structurally pinned at 0 — there is no wrong-but-plausible value in the page to pick.
+**Decided 2026-09-05:** add decoys to the base pages (plan §B1b).
+
+- [x] Rewrite `fixtures/base/*.html` with DQ-passing competitors per field, in sibling/aside
+      containers only — never inside the field's own container, or no correct selector exists
+- [x] Tighten `generate.py`: old selector must resolve to exactly **1** element on `before.html`
+- [x] Regenerate the corpus — same 20 cases / 46 fields, only the difficulty moved
+- [x] `test_every_field_has_a_wrong_answer_available` — guards the corpus against re-flattening
+- [x] Re-run the baseline; soft vs hard reported side by side
+- [x] **Gate met:** `resolve_but_wrong_rate` 0.00% → **2.08%**
+
+| metric | soft | hard |
+|---|---|---|
+| `healed_rate` | 95.83% | **91.67%** |
+| `resolve_but_wrong_rate` | 0.00% *(pinned)* | **2.08%** *(live)* |
+
+`product__combo/price` → proposed `div.c0929-price` → resolved `₹2,999` (the header promo strip),
+DQ `ok`, **anchor check caught it** → `suspect`. The §10 thesis, demonstrated on the bench.
+
+⚠️ Headroom is still only 8.33% (4/48). B2 must show a trend across the k-sweep, not a 1-field delta.
 
 ### B2 — Heal memory (not started)
 - [ ] `paths()` signature + TF-IDF cosine retriever over `artifacts/heal_memory.jsonl`

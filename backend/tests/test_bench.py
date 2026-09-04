@@ -353,3 +353,36 @@ class TestGeneratedCorpus:
                 assert not soup.select(sel), (
                     f"{case.case_id}/{field.name}: old selector {sel!r} still resolves"
                 )
+
+    def test_every_field_has_a_wrong_answer_available(self, drift_dir):
+        """The corpus must be able to distinguish, not merely to fail.
+
+        The first version of this corpus scored 95.8% because every anchor value appeared
+        exactly once in its page: a strategy that ignores the DOM and greps for text scored
+        full marks, and resolve_but_wrong_rate was pinned at 0 because there was nothing
+        wrong to pick. Each field now needs decoys — other elements whose text passes its DQ
+        regex — or the benchmark is measuring string search rather than selector repair.
+        """
+        import re
+
+        from bs4 import BeautifulSoup
+
+        for case_dir in sorted(drift_dir.iterdir()):
+            if not (case_dir / "case.json").is_file():
+                continue
+            case = load_case(str(case_dir))
+            if case.drift_type == "unlabelled":
+                continue  # hand-written case, not held to the decoy contract
+            soup = BeautifulSoup(case.after_html, "html.parser")
+            for field in case.fields:
+                pattern = (field.dq or {}).get("regex")
+                if not pattern:
+                    continue
+                rx = re.compile(pattern)
+                leaves = [e for e in soup.find_all(True) if not e.find(True)]
+                passing = [e for e in leaves if rx.search(e.get_text(strip=True) or "")]
+                wrong = [e for e in passing if e.get_text(strip=True) != field.anchor]
+                assert len(wrong) >= 2, (
+                    f"{case.case_id}/{field.name}: only {len(wrong)} decoy(s) pass its DQ "
+                    f"regex — too few for a wrong answer to be plausible"
+                )

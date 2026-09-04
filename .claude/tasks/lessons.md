@@ -149,3 +149,18 @@ element containing this text" solves the corpus, the number measures string sear
 repair — and there is no headroom left for the improvement the benchmark exists to evaluate. A
 metric pinned at 0 by construction (nothing wrong is available to pick) is a broken guard, not a
 clean result.
+
+### The decoy fix, and what it bought
+Adding DQ-passing competitors to the base pages (struck-through MRP, promo strip, "also viewed"
+rail, tiered ticket prices) moved `healed_rate` 95.83% → 91.67% and, more importantly, unpinned
+`resolve_but_wrong_rate` from 0.00% → 2.08%. The corpus was regenerated from the same transforms:
+same 20 cases, same 46 drifted fields. Only the difficulty moved, which is what makes the two
+numbers comparable in the first place.
+
+The decoy has to be reachable but not adjacent. Constraint: decoys go in sibling or aside
+containers, never inside the field's own container, and `generate.py` asserts the old selector
+resolves to **exactly 1** element on `before.html`. Loosen either and the case becomes unhealable
+rather than hard — there would be no correct selector left to find.
+
+**Rule:** when a benchmark is too easy, add ambiguity, not severity. Harsher mutation raises
+difficulty without creating a wrong answer to pick; a plausible competitor does both.

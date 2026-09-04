@@ -10,6 +10,12 @@ and does not match `after.html`. `attr_strip` does not break a class-based selec
 every field drifts under every transform would pad the corpus with cases where the correct answer
 is "the old selector still works", and inflate the heal rate.
 
+The base pages carry **decoys**: values that pass the field's DQ regex but are the wrong answer (a
+struck-through MRP beside the sale price, an "also viewed" rail with its own heading and rating).
+Without them the anchor is the only text in the page that satisfies DQ, so "repair the selector"
+collapses into "grep for the string" — the first corpus scored 95.8% that way, with
+`resolve_but_wrong_rate` pinned at 0 because there was nothing wrong available to pick.
+
 ponytail: soup.select for the drift check rather than Playwright. It is a "does this still match"
 question over simple selectors, and 120 Chromium launches to answer it at generation time is not a
 trade. The bench itself still resolves through Playwright, which stays the source of truth.
@@ -51,9 +57,13 @@ def build_case(base_name: str, drift_type: str) -> dict | None:
     for field in meta["fields"]:
         sel = bare(field["old_selector"])
         matched = soup_before.select(sel)
-        if not matched:
+        if len(matched) != 1:
+            # Exactly 1, not >=1: the base pages carry decoys (a struck-through MRP, an
+            # "also viewed" rail) so the anchor is no longer unique *by text*. It must stay
+            # unique *by structure*, or no correct selector exists and the case is unhealable.
             raise ValueError(
-                f"{base_name}: {field['name']} selector {sel!r} matches nothing in the base page"
+                f"{base_name}: {field['name']} selector {sel!r} matches {len(matched)} "
+                f"elements in the base page, expected exactly 1 — a decoy landed too close"
             )
         if matched[0].get_text(strip=True) != field["anchor"]:
             raise ValueError(

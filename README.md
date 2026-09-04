@@ -99,6 +99,16 @@ verifying per field that the old selector really did break and the value really 
 proposal is scored through the product's own `post_check` gate, so the headline `healed_rate` counts
 only repairs that would actually ship.
 
+| metric | value | |
+|---|---|---|
+| `healed_rate` | **91.67%** | correct **and** accepted by the gate — the headline |
+| `anchor_correct_rate` | 91.67% | the model produced the right value |
+| `resolve_but_wrong_rate` | 2.08% | guard: resolved a plausible *wrong* value; a rise here is a regression |
+| `no_proposal_rate` | 0.00% | |
+
+Per drift type: `class_rename` 100% (n=12), `attr_strip` 100% (7), `combo` 91.7% (12),
+`tag_swap` 80% (10), `wrapper_insert` 80% (5).
+
 ## Project layout
 
 ```
@@ -127,7 +137,8 @@ Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/
 
 What that does **not** mean:
 
-- **The measured heal rate is 95.8%, and that number says more about the corpus than the model.** 46 of 48 fields across 21 cases, `qwen2.5-coder:7b` local ([full report](backend/artifacts/phase0_report.md)) — but every anchor value is *globally unique* in its fixture page, so "repair the selector" degenerates into "find the one element containing this string." A real page has an MRP next to the sale price and three things that look like a rating. Read 95.8% as an upper bound on a soft corpus, not as production accuracy. Hardening it with decoy candidates is the next piece of work.
+- **The measured heal rate is 91.7% on synthetic drift — a lower bound on difficulty, not production accuracy.** 44 of 48 fields across 21 cases, local `qwen2.5-coder:7b` ([full report](backend/artifacts/phase0_report.md)). The fixture pages carry decoys (a struck-through MRP, a promo strip, an "also viewed" rail) so a wrong-but-DQ-valid answer is actually available; an earlier decoy-free corpus scored 95.8% and is not comparable, because there the task collapsed into "find the one element containing this string." Still: four base pages, one model, hand-written markup. A real redesign is messier than a scripted transform.
+- **`resolve_but_wrong_rate` is 2.1% — and that is the number the anchor check exists for.** On `product__combo/price` the model proposed `div.c0929-price`, which resolves to `₹2,999` — the header promo strip. It passes the price regex, so DQ returned `ok`. The anchor check caught it and the proposal was gated to `suspect`, never auto-applied. Without that check it would have shipped a wrong price silently.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
 - **15 of the 152 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 137 rather than 152.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
