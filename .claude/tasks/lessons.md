@@ -44,7 +44,11 @@ Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See
 
 **HTML cleaner must preserve semantic content** — script/style/comment stripping is safe; stripping data attributes or microdata tags will break `resolve.py` and heal proposals. Test that actual anchor values and search targets survive cleaning.
 
-**SQLAlchemy `Mapped[]` on Python 3.9 needs `typing.Optional`, not `X | None`** — SQLAlchemy resolves Mapped annotations at mapping time, and `str | None` raises on 3.9 even with `from __future__ import annotations`. Use `Optional[str]`. Consequently ruff's `UP007`/`UP045` (which rewrite to `X | None`) are wrong for this codebase — they're in `ignore`. (`backend/app/models.py`.)
+**SQLAlchemy `Mapped[]` annotations are resolved at mapping time, so they follow the *runtime* Python version, not `from __future__ import annotations`** — on 3.9 `Mapped[str | None]` raised, which forced `typing.Optional` and the `UP007`/`UP045` ruff ignores. **Resolved 2026-09-04:** the project moved to Python 3.12 (`requires-python = ">=3.12"`, ruff `target-version = "py312"`), `ruff check --fix` rewrote all 44 sites to `X | None`, and both ignores were dropped. Suite unchanged at 129 passed / 14 skipped. Keep the general rule: a version-dependent ignore should carry the version in its comment so it's obvious when it expires.
+
+**Verify a repo's state before acting on a description of it** — a stale plan file and a stale mental model both claimed things (README says "Status: planning", stack is 3.12) that the working tree contradicted. Re-derive findings from `git`/the filesystem; treat prior write-ups as hypotheses.
+
+**`pytest` only passes from `backend/`** — run from the repo root, 10 async tests fail with "async def function and no async plugin installed" because root pytest never discovers `backend/pyproject.toml`'s `asyncio_mode = "auto"`. Always `cd backend` first.
 
 **Circular FKs need `use_alter=True`** — the §6 data model has a cycle: `config_version.source_file_id → upload_file → upload_batch → config_version`. Plain `create_table` ordering can't resolve it (alembic warns "unresolvable cycles"; `upgrade head` fails "table does not exist"). Fix: `ForeignKey(..., use_alter=True, name="...")` on the two *nullable* back-refs so those constraints are added via post-create ALTER.
 
@@ -79,3 +83,69 @@ Build Phases 0.5→5 first, plug in `ANTHROPIC_API_KEY` + Ollama at the end. See
 **`effective_config_version` = pinned else latest** — a batch runs against `batch.config_version_id` when set (pin, §11), else the domain's latest. Route parse/canary/results/heal through it so pinning actually takes effect. `save_config`/`heal_accept` set it to the new version (== latest at that moment). (`app/storage.py`.)
 
 **Full-build status (2026-06-18):** Phases 0.5→8 all shipped on `dev` (commits db06335…960efbc). 143 backend tests, ruff clean, frontend build+tsc green. Only deferred item: the live heal/bench GATE (needs ANTHROPIC_API_KEY + Ollama) — run at end-of-MVP E2E. See [[full-build-autonomy]] note above.
+
+**The heal prompt has never contained any DOM (found 2026-09-04, first live-model run)** — `spike/cleaner.clean_html()` is named/documented "returns cleaned HTML" but calls `soup.get_text()`, so `build_prompt`'s "HTML (cleaned)" block is plain text with every tag, class and id stripped. The model is asked for CSS/XPath against markup it cannot see and rationally echoes the old selector back as XPath. Any heal baseline taken before this is fixed measures the cleaner, not the model. Also: `build_prompt`'s few-shot example hardcodes `css=.a-price-whole` / `css=.pdp-product-name`, so eval fixtures using those class names measure answer-leakage. (`backend/spike/cleaner.py`, `backend/spike/heal/prompt.py`.)
+
+**A field with no DQ rule can never fail** — `check_dq` returns `ok` for an empty value unless `required` is set, so an un-ruled field is invisible to drift detection and never triggers heal. Two consequences bit at once: (1) the picker only forwarded a `dq` block when the operator's chosen type *matched* auto-inference, so hand-picking a type saved `dq: null` — now defaulted server-side in `save_config` from `default_dq(type)`, with `{}` reserved for "deliberately no checks"; (2) the `price` preset's dq carried no `regex`, so `check_dq` took its comma-only cleaning branch and `float("₹149900")` raised — every currency-prefixed price `type_fail`ed. The dq regex is deliberately looser than the *inference* regex (inference must demand a glyph to discriminate price from rating; validation must not). (`app/dq.py`, `app/presets.py`, `app/routes/config.py`.)
+
+**Sibling islands under a server component need an event, not lifted state** — `app/pick/[batchId]/page.tsx` is a server component, so `FieldPanel`/`AdvancedPanel`/`HealReview` (which mint config versions) and `VersionPanel` (which lists them) share no state; VersionPanel fetched once on mount and showed "No versions yet" forever. Fixed by dispatching a `CONFIG_VERSION_CREATED` window event from `lib/api.ts` — the one place every version-creating call passes through — rather than making the page a client component to hold a counter. (`frontend/lib/api.ts`, `frontend/components/VersionPanel.tsx`.)
+
+**Demo/eval corpora must avoid the selector ladder's over-fit** — the ladder prefers a *valued* `data-*` attribute (`selector.py:42-44`), so a `data-price-amount="149900"` on the picked page yields `[data-price-amount='149900']`, unique there and broken on every other file. Fixture markup that carries per-item valued `data-*` attributes will show a misleading 100% failure rate.
+
+### A guard that can never pass is worse than no guard
+`post_check` compared the field anchor against the *cluster representative* — a different product
+than the page the anchor was captured on. `anchor_ok` was therefore False on every real batch and
+`healed` was unreachable; it only passed in tests, where both fixture files held the same value.
+
+**Rule:** when a check compares a stored value to a freshly-extracted one, the stored value must
+carry the scope it is valid in (here, the filename). And when the check cannot be evaluated, return
+a third state (`None`) — collapsing "unknown" into "failed" silently disables the happy path, and
+collapsing it into "passed" silently disables the guard.
+
+**Rule:** any status a state machine can emit needs a test that reaches it *through realistic
+inputs*. Fixtures where every file holds the same value made an always-False comparison look green.
+
+### Don't run `npm run build` while the dev server is up
+It overwrites `.next/`, and the running `next dev` then 500s with `MODULE_NOT_FOUND` on every route.
+Verification runs during a capture session must use `npm run typecheck` only, or the dev server has
+to be restarted (`rm -rf .next && npm run dev`) before driving the UI again.
+
+### A demo corpus encodes assumptions — check which ones it hides
+The single mixed batch (6 old + 4 new files) could never exercise the anchor check, because the page
+the operator picks on is by construction a page that still parses, so it is never in the failing
+cluster. Modelling the real scenario — **two crawls of the same filenames** — was what made the
+product's headline guard demonstrable at all.
+
+### An eval corpus must prove its cases are actually broken
+Applying a labelled transform to a page does not guarantee the field drifted. `attr_strip` removes
+`id` and `data-*` but leaves a class-based selector resolving perfectly; had the generator assumed
+"transform applied ⇒ field drifted", ~a third of the corpus would have been cases whose correct
+answer was "the old selector still works" — scored as heals, inflating the baseline.
+
+**Rule:** the corpus generator asserts, per field, that the old selector matches `before.html`,
+does *not* match `after.html`, and that the anchor value survives the transform. Fields failing the
+middle assertion are dropped from the case, not silently included. A benchmark that cannot fail is
+not a measurement.
+
+### Score what ships, not what the model emitted
+`anchor_correct` (value equals anchor) overstates the product: a correct value that `post_check`
+marks `suspect` is never auto-applied, so the user never sees it. The bench therefore calls the real
+`app.heal.post_check` rather than reimplementing the gate — a reimplementation drifts from the
+thing it is supposed to measure, and the drift is invisible because both sides are "our code".
+
+**Rule:** the headline metric is `healed_rate` (correct **and** gate-accepted), reported beside
+`resolve_but_wrong_rate` as a guard. A change that raises the first while raising the second is a
+regression for a system whose pitch is "guarded, not trusted".
+
+### A benchmark must be able to distinguish, not just to fail
+The corpus passed every "is it broken?" assertion and still measured almost nothing: 95.83% healed,
+`resolve_but_wrong_rate` structurally 0. The cause was in the base pages, not the mutations — every
+anchor value (`₹1,49,900`, `4.6`, `Priya Raghunathan`) appears exactly once in its page, so a model
+that ignores DOM structure entirely and greps for the string still scores. Real drift is hard
+because of *ambiguity*: an MRP beside the sale price, three plausible ratings, two `<h1>`s.
+
+**Rule:** before trusting a baseline, check that a trivial strategy would fail it. If "find the one
+element containing this text" solves the corpus, the number measures string search, not selector
+repair — and there is no headroom left for the improvement the benchmark exists to evaluate. A
+metric pinned at 0 by construction (nothing wrong is available to pick) is a broken guard, not a
+clean result.

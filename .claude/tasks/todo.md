@@ -107,6 +107,58 @@ Tracks active phases from [`.claude/plans/self-healing-parser.md`](../plans/self
 
 ---
 
+## Phase A/B — Presentable + measured heal loop (2026-09-04 →) — plan: [`presentable-and-heal-memory.md`](../plans/presentable-and-heal-memory.md)
+
+### A — Presentable ✅
+- [x] Python 3.12 upgrade; MIT LICENSE; repo metadata
+- [x] Honesty pass on README (no measured heal rate, one-case corpus, anchor scope)
+- [x] 4 screenshots captured against the real UI + a live local 7B (two-crawl demo corpus)
+
+### B0 — Blockers found while doing A ✅
+- [x] `clean_html` returned plain text — the heal prompt contained no DOM at all. Now serializes
+      the soup with only selectable attributes kept.
+- [x] Answer leakage removed from the prompt's format example.
+- [x] **B0b:** `post_check` compared the anchor to the cluster representative (a different page),
+      so `healed` was unreachable on any batch of distinct records. Anchors now record their source
+      file and are checked on it; `None` when inapplicable, surfaced in the UI as "not in this cluster".
+
+### B1 — Baseline measurement
+- [x] Ollama + `qwen2.5-coder:7b` running
+- [x] **Decisions 1–4 resolved** (synthetic mutation / paths+TF-IDF / sweep k / tiered + guard) and written to the plan
+- [x] `spike/mutate.py` — 5 labelled drift transforms, self-checked
+- [x] `fixtures/base/*` — 4 base pages × 3 fields; `fixtures/generate.py` → **20 generated cases, 46 drifted fields**
+- [x] `spike/__main__.py` — bench CLI (`python -m spike --fixtures … --provider … --out …`)
+- [x] Tiered scoring wired: `run_bench` runs the real `app.heal.post_check`; `healed_rate` +
+      `per_drift_type` added to `compute_metrics`
+- [x] Tests: `test_mutate.py` + new `test_bench.py` classes — 173 pass, ruff clean
+- [x] Full baseline run, `artifacts/` committed (gitignore exception), number in the README
+
+**Baseline result — 21 cases, 48 fields, `ollama/qwen2.5-coder:7b`:**
+
+| metric | value |
+|---|---|
+| `healed_rate` (headline) | **95.83%** (46/48) |
+| `anchor_correct_rate` | 95.83% |
+| `resolve_but_wrong_rate` | 0.00% |
+| `no_proposal_rate` | 0.00% |
+
+Per drift type: `attr_strip` 100% (n=7), `class_rename` 100% (n=12), `tag_swap` 100% (n=10),
+`combo` 91.7% (n=12), `wrapper_insert` 80% (n=5). Only 2 failures, both `still_broken`/`empty`:
+`article__combo/headline`, `event__wrapper_insert/venue`.
+
+### B1b — Harden the corpus (baseline is saturated)
+- [ ] **The corpus is too easy to measure B2 against.** Every anchor value is globally unique in its
+      base page, so selector repair degenerates into string search. 4.17% of headroom cannot show
+      lift from heal memory, and `resolve_but_wrong_rate` is structurally pinned at 0 — there is no
+      wrong-but-plausible value in the page to pick. Decision pending: add decoys to the base pages.
+
+### B2 — Heal memory (not started)
+- [ ] `paths()` signature + TF-IDF cosine retriever over `artifacts/heal_memory.jsonl`
+- [ ] Inject top-k into `build_prompt`; `--k` on the CLI
+- [ ] Sweep k ∈ {0,1,3,5}; `compare_metrics` regression guard; before/after table in the README
+
+---
+
 ## Review
 
 **Phase 8 — Advanced mode COMPLETE (2026-06-18)** — ALL PHASES DONE

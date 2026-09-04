@@ -32,7 +32,12 @@ yarn-error.log*
 *.sqlite3
 data/
 uploads/
-artifacts/
+# (contents, not the dir itself — git cannot re-include a file under an excluded dir)
+**/artifacts/*
+# ...except the committed heal-bench baseline: the README quotes its number, so the
+# evidence for that number has to be in the repo next to it.
+!backend/artifacts/phase0_report.json
+!backend/artifacts/phase0_report.md
 
 # Editor
 .DS_Store
@@ -41,3 +46,6 @@ artifacts/
 
 # Local Claude state
 .claude/sessions/
+
+# tool caches
+.serena/

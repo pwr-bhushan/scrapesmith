@@ -15,6 +15,18 @@ Every HTML scraper rots: a redesign renames a class or wraps a price in one more
 - **Versioned configs** — every change is a new version with a diff view and per-batch pinning; concurrent heals serialize under a Postgres advisory lock.
 - **Pluggable LLM** — local Ollama by default, cloud Claude opt-in. The ✨ field classifier is always opt-in — interactive clicking never blocks on a model.
 
+## See it work
+
+| Click a value to pick it | Canary-test before the batch |
+|---|---|
+| ![Click to pick](docs/img/01-click-to-pick.png) | ![Canary](docs/img/02-canary.png) |
+| Inference guesses the type (PRICE, 85%); the selector is confirmed to resolve to exactly 1 element before you can confirm. | Both fields `ok`, both matching their captured anchor, on one file — before spending a batch run. |
+
+| Batch + per-field failure rates | Drift → cluster → heal, proved against the anchor |
+|---|---|
+| ![Batch results](docs/img/03-batch-results.png) | ![Heal review](docs/img/04-heal-review.png) |
+| Crawl 1 catches a redesign mid-rollout: 4 of 10 files post-redesign, both fields at exactly 40%. | Crawl 2, rollout complete — 100% failure. A local 7B model rewrites both selectors, and each is accepted only because it reproduces the value the operator confirmed (`✓ ₹1,49,900`). |
+
 ## Quickstart
 
 ```bash
@@ -24,7 +36,7 @@ docker compose up -d                 # postgres:16 + redis:7
 
 # 2. Backend
 cd backend
-python3.9 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/playwright install chromium
 .venv/bin/alembic upgrade head                     # create the schema
 .venv/bin/uvicorn app.main:app --reload            # API at :8000
@@ -59,7 +71,7 @@ flowchart LR
 
 | Layer | Tech |
 |-------|------|
-| Backend | Python 3.9, FastAPI (async), SQLAlchemy 2 (async) + asyncpg, Alembic |
+| Backend | Python 3.12, FastAPI (async), SQLAlchemy 2 (async) + asyncpg, Alembic |
 | Data / jobs | Postgres 16, Redis 7 + arq (async batch + heal jobs, SSE progress) |
 | Rendering / extraction | Playwright (headless Chromium) — renders the preview **and** runs extraction |
 | Frontend | Next.js 15 (App Router, React + TypeScript) |
@@ -68,12 +80,24 @@ flowchart LR
 ## Tests
 
 ```bash
-cd backend && .venv/bin/pytest        # 143 tests; DB/Redis/Playwright tests self-skip if unavailable
-.venv/bin/ruff check .
+backend/.venv/bin/pytest              # 173 passed with Postgres up; 158 passed / 15 skipped without
+cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
 
 Integration tests gate on service reachability, so the suite stays green on a bare machine; CI runs them against Postgres/Redis service containers.
+
+**Heal benchmark** — measures selector repair over a corpus of deliberately broken pages:
+
+```bash
+cd backend && python -m spike --fixtures fixtures/drift --provider ollama --out artifacts
+```
+
+`fixtures/generate.py` mutates four hand-written base pages with five labelled drift transforms
+(`class_rename`, `tag_swap`, `wrapper_insert`, `attr_strip`, `combo`) into 20 before/after cases,
+verifying per field that the old selector really did break and the value really did survive. Each
+proposal is scored through the product's own `post_check` gate, so the headline `healed_rate` counts
+only repairs that would actually ship.
 
 ## Project layout
 
@@ -81,7 +105,8 @@ Integration tests gate on service reachability, so the suite stays green on a ba
 backend/
   app/        FastAPI service — routes/, render, parser, dq, inference,
               selector ladder, heal, batch jobs, export, versioning
-  spike/      Phase 0 de-risk rig (heal providers + bench) — frozen
+  spike/      heal providers, prompt, drift mutator, and the eval bench (`python -m spike`)
+  fixtures/   base pages + the generated drift corpus the bench measures against
   alembic/    migrations
 frontend/     Next.js app — upload, click-to-select picker, canary,
               batch results, heal review, versions, advanced mode
@@ -96,4 +121,14 @@ frontend/     Next.js app — upload, click-to-select picker, canary,
 - **Full design spec** (every decision, wireframes, security model): [`.claude/plans/self-healing-parser.md`](.claude/plans/self-healing-parser.md)
 - **Phase plans** (de-risk spike → advanced mode): [`.claude/plans/`](.claude/plans/)
 
-Active development on `dev`. Implemented in phases 0.5 → 8 (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode); backend 143 tests passing and lint clean, frontend type-checked and building. The one deferred step is the live heal **GATE** (real drift pairs + a running model) — all model-independent code is done, and heal degrades honestly to `model: "unavailable"` when no provider is configured.
+## Status & limitations
+
+Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode). Nothing is stubbed — there are no `TODO`/`NotImplementedError` placeholders in `app/` or the frontend. Backend is lint-clean; the frontend type-checks and builds.
+
+What that does **not** mean:
+
+- **The measured heal rate is 95.8%, and that number says more about the corpus than the model.** 46 of 48 fields across 21 cases, `qwen2.5-coder:7b` local ([full report](backend/artifacts/phase0_report.md)) — but every anchor value is *globally unique* in its fixture page, so "repair the selector" degenerates into "find the one element containing this string." A real page has an MRP next to the sale price and three things that look like a rating. Read 95.8% as an upper bound on a soft corpus, not as production accuracy. Hardening it with decoy candidates is the next piece of work.
+- **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
+- **15 of the 152 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 137 rather than 152.
+- **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
+- **Untrusted HTML is rendered in egress-blocked, script-stripped, CSP-locked contexts**, which is a real mitigation but not a substitute for a sandbox at the OS level. Prompt-injection hardening of the heal prompt is not implemented.

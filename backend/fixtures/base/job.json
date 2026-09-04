@@ -1,0 +1,27 @@
+{
+  "host": "rolesboard.example",
+  "page_type": "job_posting",
+  "fields": [
+    {
+      "name": "job_title",
+      "type": "text",
+      "old_selector": "css=#job-posting h1.posting-title",
+      "dq": { "required": true, "regex": ".+", "parses_as": "text" },
+      "anchor": "Senior Platform Engineer"
+    },
+    {
+      "name": "company",
+      "type": "text",
+      "old_selector": "css=div.company-line > span.company-name",
+      "dq": { "required": true, "regex": ".+", "parses_as": "text" },
+      "anchor": "Northwind Systems"
+    },
+    {
+      "name": "salary",
+      "type": "text",
+      "old_selector": "css=.compensation [data-salary-min]",
+      "dq": { "required": true, "regex": "[₹$€]\\s*[\\d,]+", "parses_as": "text" },
+      "anchor": "₹38,00,000 – ₹52,00,000"
+    }
+  ]
+}

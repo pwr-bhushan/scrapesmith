@@ -20,6 +20,12 @@ def amazon_case_dir() -> pathlib.Path:
 
 
 @pytest.fixture
+def drift_dir() -> pathlib.Path:
+    """The whole eval corpus — generated cases plus the hand-written amazon_product one."""
+    return FIXTURES_DIR / "drift"
+
+
+@pytest.fixture
 def before_html(amazon_case_dir: pathlib.Path) -> str:
     return (amazon_case_dir / "before.html").read_text(encoding="utf-8")
 

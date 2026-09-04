@@ -1,0 +1,40 @@
+{
+  "host": "ledger.example",
+  "page_type": "news_article",
+  "drift_type": "combo",
+  "fields": [
+    {
+      "name": "headline",
+      "type": "text",
+      "old_selector": "css=article#story > h1.headline",
+      "dq": {
+        "required": true,
+        "regex": ".+",
+        "parses_as": "text"
+      },
+      "anchor": "Regulator opens inquiry into port fee rises"
+    },
+    {
+      "name": "author",
+      "type": "text",
+      "old_selector": "css=.byline-block span.byline-author",
+      "dq": {
+        "required": true,
+        "regex": ".+",
+        "parses_as": "text"
+      },
+      "anchor": "Priya Raghunathan"
+    },
+    {
+      "name": "read_minutes",
+      "type": "number",
+      "old_selector": "css=div.read-time > span.minutes",
+      "dq": {
+        "required": true,
+        "regex": "^\\d+$",
+        "parses_as": "number"
+      },
+      "anchor": "7"
+    }
+  ]
+}

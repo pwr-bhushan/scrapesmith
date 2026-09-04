@@ -1,0 +1,27 @@
+{
+  "host": "ticketyard.example",
+  "page_type": "event_detail",
+  "fields": [
+    {
+      "name": "event_name",
+      "type": "text",
+      "old_selector": "css=#event-detail h1.event-name",
+      "dq": { "required": true, "regex": ".+", "parses_as": "text" },
+      "anchor": "Monsoon Jazz Sessions"
+    },
+    {
+      "name": "venue",
+      "type": "text",
+      "old_selector": "css=div.venue-block > span.venue-name",
+      "dq": { "required": true, "regex": ".+", "parses_as": "text" },
+      "anchor": "Shivaji Mandir Auditorium"
+    },
+    {
+      "name": "ticket_price",
+      "type": "currency",
+      "old_selector": "css=.ticket-block [data-price-paise]",
+      "dq": { "required": true, "regex": "[₹$€]\\s*[\\d,]+", "parses_as": "number" },
+      "anchor": "₹1,200"
+    }
+  ]
+}

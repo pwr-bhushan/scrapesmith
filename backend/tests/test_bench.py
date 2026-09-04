@@ -55,6 +55,8 @@ def _make_result(
     dq_status: str = "ok",
     proposed_selector: str | None = "css=.price",
     resolved_values: list[str] | None = None,
+    status: str = "unchecked",
+    drift_type: str = "unlabelled",
 ) -> BenchResult:
     return BenchResult(
         provider_name=provider_name,
@@ -66,6 +68,8 @@ def _make_result(
         anchor_correct=anchor_correct,
         resolve_but_wrong=resolve_but_wrong,
         dq_status=dq_status,
+        status=status,
+        drift_type=drift_type,
     )
 
 
@@ -264,3 +268,88 @@ class TestLoadCase:
         case = load_case(str(amazon_case_dir))
         assert "₹1,49,900" in case.before_html
         assert "₹ 1,49,900" in case.after_html or "1,49,900" in case.after_html
+
+
+# ---------------------------------------------------------------------------
+# Test: tiered scoring — healed_rate (DECISION 4c)
+#
+# Success is "the right value AND the product's gate accepted it". Both halves are
+# load-bearing: a correct value that post_check marks `suspect` is never auto-applied,
+# so counting it as a heal overstates what would actually ship.
+# ---------------------------------------------------------------------------
+
+class TestHealedRate:
+    def test_healed_requires_both_anchor_correct_and_gate(self):
+        """anchor_correct alone is not a heal; the gate must also say 'healed'."""
+        results = [
+            _make_result(field_name="a", anchor_correct=True, status="healed"),
+            _make_result(field_name="b", anchor_correct=True, status="suspect"),
+        ]
+        metrics = compute_metrics(results)
+        assert metrics["anchor_correct_rate"] == pytest.approx(1.0)
+        assert metrics["healed_rate"] == pytest.approx(0.5)
+
+    def test_gate_healed_but_wrong_value_is_not_a_heal(self):
+        """The gate passing on a wrong value must not count — that is the dangerous case."""
+        results = [_make_result(field_name="a", anchor_correct=False, status="healed")]
+        assert compute_metrics(results)["healed_rate"] == pytest.approx(0.0)
+
+    def test_healed_rate_present_on_empty(self):
+        assert compute_metrics([])["healed_rate"] == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Test: per_drift_type breakdown (DECISION 1 — the labelled corpus pays off here)
+# ---------------------------------------------------------------------------
+
+class TestPerDriftType:
+    def test_drift_types_broken_down_independently(self):
+        results = [
+            _make_result(field_name="a", anchor_correct=True, status="healed",
+                         drift_type="class_rename"),
+            _make_result(field_name="b", anchor_correct=True, status="healed",
+                         drift_type="class_rename"),
+            _make_result(field_name="c", anchor_correct=False, drift_type="combo"),
+            _make_result(field_name="d", anchor_correct=False, drift_type="combo"),
+        ]
+        per_drift = compute_metrics(results)["per_drift_type"]
+        assert per_drift["class_rename"]["healed_rate"] == pytest.approx(1.0)
+        assert per_drift["combo"]["healed_rate"] == pytest.approx(0.0)
+        assert per_drift["combo"]["total"] == 2
+
+    def test_unlabelled_default_keeps_legacy_cases_countable(self):
+        """Cases predating the mutator have no drift_type and must still be reported."""
+        per_drift = compute_metrics([_make_result(anchor_correct=True)])["per_drift_type"]
+        assert per_drift["unlabelled"]["total"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Test: the generated corpus loads and is labelled
+# ---------------------------------------------------------------------------
+
+class TestGeneratedCorpus:
+    def test_every_generated_case_is_labelled_and_loads(self, drift_dir):
+        dirs = [d for d in sorted(drift_dir.iterdir()) if (d / "case.json").is_file()]
+        cases = [load_case(str(d)) for d in dirs]
+        assert len(cases) >= 15, f"corpus too small to measure a rate: {len(cases)} cases"
+        for case in cases:
+            assert case.fields, f"{case.case_id} has no fields to heal"
+            assert case.drift_type, f"{case.case_id} has no drift_type"
+
+    def test_old_selectors_are_actually_broken(self, drift_dir):
+        """A case where the old selector still works has nothing to heal and would
+        inflate the rate. Checked with soup.select, the same engine the generator used."""
+        from bs4 import BeautifulSoup
+
+        for case_dir in sorted(drift_dir.iterdir()):
+            if not (case_dir / "case.json").is_file():
+                continue
+            case = load_case(str(case_dir))
+            if case.drift_type == "unlabelled":
+                continue  # hand-written case; its selectors are not all plain CSS
+            soup = BeautifulSoup(case.after_html, "html.parser")
+            for field in case.fields:
+                sel = field.old_selector.removeprefix("css=")
+                assert not soup.select(sel), (
+                    f"{case.case_id}/{field.name}: old selector {sel!r} still resolves"
+                )

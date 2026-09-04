@@ -1,0 +1,18 @@
+{
+  "host": "ticketyard.example",
+  "page_type": "event_detail",
+  "drift_type": "wrapper_insert",
+  "fields": [
+    {
+      "name": "venue",
+      "type": "text",
+      "old_selector": "css=div.venue-block > span.venue-name",
+      "dq": {
+        "required": true,
+        "regex": ".+",
+        "parses_as": "text"
+      },
+      "anchor": "Shivaji Mandir Auditorium"
+    }
+  ]
+}

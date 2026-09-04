@@ -1,0 +1,18 @@
+{
+  "host": "ledger.example",
+  "page_type": "news_article",
+  "drift_type": "attr_strip",
+  "fields": [
+    {
+      "name": "headline",
+      "type": "text",
+      "old_selector": "css=article#story > h1.headline",
+      "dq": {
+        "required": true,
+        "regex": ".+",
+        "parses_as": "text"
+      },
+      "anchor": "Regulator opens inquiry into port fee rises"
+    }
+  ]
+}

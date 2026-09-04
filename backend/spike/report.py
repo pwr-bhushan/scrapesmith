@@ -24,30 +24,44 @@ def render_table(results: List[BenchResult], metrics: Dict[str, Any]) -> str:
     """
     lines: List[str] = []
     lines.append("=" * 72)
-    lines.append("Phase 0 — Heal Spike Results")
+    lines.append("Heal Bench — selector repair over the drift corpus")
     lines.append("=" * 72)
     lines.append(
-        f"{'Provider':<24} {'Case':<20} {'Field':<10} {'Correct':<8} {'DQ':<12}"
+        f"{'Case':<28} {'Field':<14} {'Correct':<8} {'Gate':<13} {'DQ':<10}"
     )
     lines.append("-" * 72)
     for r in results:
-        correct_str = "YES" if r.anchor_correct else ("WRONG" if r.resolve_but_wrong else "NO")
         lines.append(
-            f"{r.provider_name:<24} {r.case_id:<20} {r.field_name:<10} {correct_str:<8} {r.dq_status:<12}"
+            f"{r.case_id:<28} {r.field_name:<14} {_verdict(r):<8} {r.status:<13} {r.dq_status:<10}"
         )
     lines.append("=" * 72)
-    lines.append(f"anchor_correct_rate  : {metrics['anchor_correct_rate']:.2%}")
-    lines.append(f"resolve_but_wrong_rate: {metrics['resolve_but_wrong_rate']:.2%}")
-    lines.append(f"no_proposal_rate     : {metrics['no_proposal_rate']:.2%}  (provider omitted or proposal rejected)")
-    lines.append("")
-    lines.append("Per-provider breakdown:")
-    for pname, pmetrics in metrics.get("per_provider", {}).items():
-        lines.append(
-            f"  {pname}: anchor_correct={pmetrics['anchor_correct_rate']:.2%}"
-            f"  ({pmetrics['anchor_correct']}/{pmetrics['total']})"
-        )
+    # healed_rate leads: it is the only rate that describes what would actually ship.
+    lines.append(f"healed_rate           : {metrics.get('healed_rate', 0.0):.2%}  (correct AND accepted by post_check)")
+    lines.append(f"anchor_correct_rate   : {metrics['anchor_correct_rate']:.2%}")
+    lines.append(f"resolve_but_wrong_rate: {metrics['resolve_but_wrong_rate']:.2%}  (guard — a rise here is a regression)")
+    lines.append(f"no_proposal_rate      : {metrics['no_proposal_rate']:.2%}  (provider omitted or proposal rejected)")
+    for title, key in (("Per-provider", "per_provider"), ("Per drift type", "per_drift_type")):
+        rows = metrics.get(key) or {}
+        if not rows:
+            continue
+        lines.append("")
+        lines.append(f"{title}:")
+        for label, m in rows.items():
+            lines.append(
+                f"  {label:<20} healed={m.get('healed_rate', 0.0):>7.2%}"
+                f"  correct={m['anchor_correct_rate']:>7.2%}"
+                f"  wrong={m.get('resolve_but_wrong_rate', 0.0):>7.2%}"
+                f"  (n={m['total']})"
+            )
     lines.append("=" * 72)
     return "\n".join(lines)
+
+
+def _verdict(r: BenchResult) -> str:
+    """One word for whether the model got the value right."""
+    if r.anchor_correct:
+        return "YES"
+    return "WRONG" if r.resolve_but_wrong else "NO"
 
 
 def write_artifacts(
@@ -75,23 +89,35 @@ def write_artifacts(
 
     md_path = os.path.join(output_dir, "phase0_report.md")
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# Phase 0 Heal Spike Report\n\n")
+        f.write("# Heal Bench Report\n\n")
         f.write("## Summary\n\n")
-        f.write(f"- **anchor_correct_rate**: {metrics['anchor_correct_rate']:.2%}\n")
-        f.write(f"- **resolve_but_wrong_rate**: {metrics['resolve_but_wrong_rate']:.2%}\n")
-        f.write(f"- **no_proposal_rate**: {metrics['no_proposal_rate']:.2%} (provider omitted or proposal rejected)\n\n")
-        f.write("## Per-Provider\n\n")
-        for pname, pm in metrics.get("per_provider", {}).items():
-            f.write(
-                f"- **{pname}**: {pm['anchor_correct_rate']:.2%} correct"
-                f" ({pm['anchor_correct']}/{pm['total']})\n"
-            )
+        f.write(
+            f"- **healed_rate**: {metrics.get('healed_rate', 0.0):.2%}"
+            " — anchor-correct **and** accepted by `post_check`. Headline: what would ship.\n"
+        )
+        f.write(f"- **anchor_correct_rate**: {metrics['anchor_correct_rate']:.2%} — the model got the right value.\n")
+        f.write(
+            f"- **resolve_but_wrong_rate**: {metrics['resolve_but_wrong_rate']:.2%}"
+            " — guard: a rise here counts as a regression even if `healed_rate` also rises.\n"
+        )
+        f.write(f"- **no_proposal_rate**: {metrics['no_proposal_rate']:.2%} (provider omitted or proposal rejected)\n")
+        for title, key in (("Per-Provider", "per_provider"), ("Per Drift Type", "per_drift_type")):
+            rows = metrics.get(key) or {}
+            if not rows:
+                continue
+            f.write(f"\n## {title}\n\n")
+            f.write("| | healed | anchor-correct | resolve-but-wrong | n |\n")
+            f.write("|---|---|---|---|---|\n")
+            for label, m in rows.items():
+                f.write(
+                    f"| {label} | {m.get('healed_rate', 0.0):.2%} | {m['anchor_correct_rate']:.2%}"
+                    f" | {m.get('resolve_but_wrong_rate', 0.0):.2%} | {m['total']} |\n"
+                )
         f.write("\n## Field Results\n\n")
-        f.write("| Provider | Case | Field | Correct | DQ Status |\n")
-        f.write("|---|---|---|---|---|\n")
+        f.write("| Case | Field | Drift | Correct | Gate | DQ | Selector |\n")
+        f.write("|---|---|---|---|---|---|---|\n")
         for r in results:
-            correct_str = "YES" if r.anchor_correct else ("WRONG" if r.resolve_but_wrong else "NO")
             f.write(
-                f"| {r.provider_name} | {r.case_id} | {r.field_name}"
-                f" | {correct_str} | {r.dq_status} |\n"
+                f"| {r.case_id} | {r.field_name} | {r.drift_type} | {_verdict(r)}"
+                f" | {r.status} | {r.dq_status} | `{r.proposed_selector or '—'}` |\n"
             )

@@ -1,0 +1,18 @@
+{
+  "host": "shopco.example",
+  "page_type": "product_detail",
+  "drift_type": "wrapper_insert",
+  "fields": [
+    {
+      "name": "rating",
+      "type": "number",
+      "old_selector": "css=.rating-block > span.rating-value",
+      "dq": {
+        "required": true,
+        "regex": "^\\d[.]\\d$",
+        "parses_as": "number"
+      },
+      "anchor": "4.6"
+    }
+  ]
+}

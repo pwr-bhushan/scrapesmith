@@ -1,0 +1,27 @@
+{
+  "host": "shopco.example",
+  "page_type": "product_detail",
+  "fields": [
+    {
+      "name": "title",
+      "type": "text",
+      "old_selector": "css=#product-detail h1.product-title",
+      "dq": { "required": true, "regex": ".+", "parses_as": "text" },
+      "anchor": "Apple MacBook Pro 14-inch"
+    },
+    {
+      "name": "price",
+      "type": "currency",
+      "old_selector": "css=div.price-block [data-price-amount]",
+      "dq": { "required": true, "regex": "[₹$€]\\s*[\\d,]+", "parses_as": "number" },
+      "anchor": "₹1,49,900"
+    },
+    {
+      "name": "rating",
+      "type": "number",
+      "old_selector": "css=.rating-block > span.rating-value",
+      "dq": { "required": true, "regex": "^\\d[.]\\d$", "parses_as": "number" },
+      "anchor": "4.6"
+    }
+  ]
+}

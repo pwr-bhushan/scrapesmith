@@ -1,0 +1,834 @@
+{
+  "metrics": {
+    "anchor_correct_rate": 0.9583333333333334,
+    "healed_rate": 0.9583333333333334,
+    "resolve_but_wrong_rate": 0.0,
+    "no_proposal_rate": 0.0,
+    "per_provider": {
+      "ollama/qwen2.5-coder:7b": {
+        "anchor_correct_rate": 0.9583333333333334,
+        "healed_rate": 0.9583333333333334,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 48,
+        "anchor_correct": 46,
+        "healed": 46
+      }
+    },
+    "per_drift_type": {
+      "attr_strip": {
+        "anchor_correct_rate": 1.0,
+        "healed_rate": 1.0,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 7,
+        "anchor_correct": 7,
+        "healed": 7
+      },
+      "class_rename": {
+        "anchor_correct_rate": 1.0,
+        "healed_rate": 1.0,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 12,
+        "anchor_correct": 12,
+        "healed": 12
+      },
+      "combo": {
+        "anchor_correct_rate": 0.9166666666666666,
+        "healed_rate": 0.9166666666666666,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 12,
+        "anchor_correct": 11,
+        "healed": 11
+      },
+      "tag_swap": {
+        "anchor_correct_rate": 1.0,
+        "healed_rate": 1.0,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 10,
+        "anchor_correct": 10,
+        "healed": 10
+      },
+      "unlabelled": {
+        "anchor_correct_rate": 1.0,
+        "healed_rate": 1.0,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 2,
+        "anchor_correct": 2,
+        "healed": 2
+      },
+      "wrapper_insert": {
+        "anchor_correct_rate": 0.8,
+        "healed_rate": 0.8,
+        "resolve_but_wrong_rate": 0.0,
+        "total": 5,
+        "anchor_correct": 4,
+        "healed": 4
+      }
+    }
+  },
+  "results": [
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "amazon_product",
+      "field_name": "price",
+      "proposed_selector": "css=.a-price-whole",
+      "resolved_values": [
+        "₹ 1,49,900 "
+      ],
+      "anchor": "₹1,49,900",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6742.358709001564,
+      "drift_type": "unlabelled",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "amazon_product",
+      "field_name": "title",
+      "proposed_selector": "css=.pdp-product-name",
+      "resolved_values": [
+        "Apple MacBook Pro 14-inch"
+      ],
+      "anchor": "Apple MacBook Pro 14-inch",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6742.358709001564,
+      "drift_type": "unlabelled",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__attr_strip",
+      "field_name": "headline",
+      "proposed_selector": "css=article.story > h1.headline",
+      "resolved_values": [
+        "Regulator opens inquiry into port fee rises"
+      ],
+      "anchor": "Regulator opens inquiry into port fee rises",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4976.358665997395,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__class_rename",
+      "field_name": "headline",
+      "proposed_selector": "css=h1.cef98-headline",
+      "resolved_values": [
+        "Regulator opens inquiry into port fee rises"
+      ],
+      "anchor": "Regulator opens inquiry into port fee rises",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 9067.713083000854,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__class_rename",
+      "field_name": "author",
+      "proposed_selector": "css=span.c473a-author[itemprop='author']",
+      "resolved_values": [
+        "Priya Raghunathan"
+      ],
+      "anchor": "Priya Raghunathan",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 9067.713083000854,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__class_rename",
+      "field_name": "read_minutes",
+      "proposed_selector": "css=span.c640f-minutes",
+      "resolved_values": [
+        "7"
+      ],
+      "anchor": "7",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 9067.713083000854,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__combo",
+      "field_name": "headline",
+      "proposed_selector": "css=section.cef928-slot h2.cef98-headline",
+      "resolved_values": [],
+      "anchor": "Regulator opens inquiry into port fee rises",
+      "anchor_correct": false,
+      "resolve_but_wrong": false,
+      "dq_status": "empty",
+      "latency_ms": 8390.764417003084,
+      "drift_type": "combo",
+      "status": "still_broken"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__combo",
+      "field_name": "author",
+      "proposed_selector": "css=section.ce928-slot div.c473a-author[itemprop='author']",
+      "resolved_values": [
+        "Priya Raghunathan"
+      ],
+      "anchor": "Priya Raghunathan",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 8390.764417003084,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__combo",
+      "field_name": "read_minutes",
+      "proposed_selector": "css=section.c7229-time div.c640f-minutes",
+      "resolved_values": [
+        "7"
+      ],
+      "anchor": "7",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 8390.764417003084,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__tag_swap",
+      "field_name": "headline",
+      "proposed_selector": "css=section.story > h2.headline",
+      "resolved_values": [
+        "Regulator opens inquiry into port fee rises"
+      ],
+      "anchor": "Regulator opens inquiry into port fee rises",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 11201.899250001588,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__tag_swap",
+      "field_name": "author",
+      "proposed_selector": "css=section.byline-block div.byline-author[itemprop='author']",
+      "resolved_values": [
+        "Priya Raghunathan"
+      ],
+      "anchor": "Priya Raghunathan",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 11201.899250001588,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__tag_swap",
+      "field_name": "read_minutes",
+      "proposed_selector": "css=section.read-time div.minutes",
+      "resolved_values": [
+        "7"
+      ],
+      "anchor": "7",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 11201.899250001588,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__wrapper_insert",
+      "field_name": "headline",
+      "proposed_selector": "css=article#story > div.layout-slot > h1.headline",
+      "resolved_values": [
+        "Regulator opens inquiry into port fee rises"
+      ],
+      "anchor": "Regulator opens inquiry into port fee rises",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 7705.839041998843,
+      "drift_type": "wrapper_insert",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "article__wrapper_insert",
+      "field_name": "read_minutes",
+      "proposed_selector": "css=div.read-time > div.layout-slot > span.minutes",
+      "resolved_values": [
+        "7"
+      ],
+      "anchor": "7",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 7705.839041998843,
+      "drift_type": "wrapper_insert",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__attr_strip",
+      "field_name": "event_name",
+      "proposed_selector": "css=.event-detail h1.event-name",
+      "resolved_values": [
+        "Monsoon Jazz Sessions"
+      ],
+      "anchor": "Monsoon Jazz Sessions",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6080.834625001444,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__attr_strip",
+      "field_name": "ticket_price",
+      "proposed_selector": "css=.ticket-block .ticket-price",
+      "resolved_values": [
+        "₹1,200"
+      ],
+      "anchor": "₹1,200",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6080.834625001444,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__class_rename",
+      "field_name": "event_name",
+      "proposed_selector": "css=#event-detail h1.c6e59-name",
+      "resolved_values": [
+        "Monsoon Jazz Sessions"
+      ],
+      "anchor": "Monsoon Jazz Sessions",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 10322.569041996758,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__class_rename",
+      "field_name": "venue",
+      "proposed_selector": "css=.c55ac-block > span.c8733-name",
+      "resolved_values": [
+        "Shivaji Mandir Auditorium"
+      ],
+      "anchor": "Shivaji Mandir Auditorium",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 10322.569041996758,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__class_rename",
+      "field_name": "ticket_price",
+      "proposed_selector": "css=.c2940-block > span.c53f1-price",
+      "resolved_values": [
+        "₹1,200"
+      ],
+      "anchor": "₹1,200",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 10322.569041996758,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__combo",
+      "field_name": "event_name",
+      "proposed_selector": "css=.c6e59-name",
+      "resolved_values": [
+        "Monsoon Jazz Sessions"
+      ],
+      "anchor": "Monsoon Jazz Sessions",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 8183.791791998374,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__combo",
+      "field_name": "venue",
+      "proposed_selector": "css=.c8733-name",
+      "resolved_values": [
+        "Shivaji Mandir Auditorium"
+      ],
+      "anchor": "Shivaji Mandir Auditorium",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 8183.791791998374,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__combo",
+      "field_name": "ticket_price",
+      "proposed_selector": "css=.c53f1-price",
+      "resolved_values": [
+        "₹1,200"
+      ],
+      "anchor": "₹1,200",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 8183.791791998374,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__tag_swap",
+      "field_name": "event_name",
+      "proposed_selector": "css=h2.event-name",
+      "resolved_values": [
+        "Monsoon Jazz Sessions"
+      ],
+      "anchor": "Monsoon Jazz Sessions",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4923.542583001108,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__tag_swap",
+      "field_name": "venue",
+      "proposed_selector": "css=div.venue-name",
+      "resolved_values": [
+        "Shivaji Mandir Auditorium"
+      ],
+      "anchor": "Shivaji Mandir Auditorium",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4923.542583001108,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__wrapper_insert",
+      "field_name": "venue",
+      "proposed_selector": "css=div.venue-block > span.venue-name",
+      "resolved_values": [],
+      "anchor": "Shivaji Mandir Auditorium",
+      "anchor_correct": false,
+      "resolve_but_wrong": false,
+      "dq_status": "empty",
+      "latency_ms": 4906.365584000014,
+      "drift_type": "wrapper_insert",
+      "status": "still_broken"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__attr_strip",
+      "field_name": "job_title",
+      "proposed_selector": "css=.posting-title",
+      "resolved_values": [
+        "Senior Platform Engineer"
+      ],
+      "anchor": "Senior Platform Engineer",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4918.601749999652,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__attr_strip",
+      "field_name": "salary",
+      "proposed_selector": "xpath=//span[@class='salary-range']",
+      "resolved_values": [
+        "₹38,00,000 – ₹52,00,000"
+      ],
+      "anchor": "₹38,00,000 – ₹52,00,000",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4918.601749999652,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__class_rename",
+      "field_name": "job_title",
+      "proposed_selector": "css=h1.cc382-title",
+      "resolved_values": [
+        "Senior Platform Engineer"
+      ],
+      "anchor": "Senior Platform Engineer",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6512.981667001441,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__class_rename",
+      "field_name": "company",
+      "proposed_selector": "css=span.ce3ab-name",
+      "resolved_values": [
+        "Northwind Systems"
+      ],
+      "anchor": "Northwind Systems",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6512.981667001441,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__class_rename",
+      "field_name": "salary",
+      "proposed_selector": "css=span.c9d0f-range",
+      "resolved_values": [
+        "₹38,00,000 – ₹52,00,000"
+      ],
+      "anchor": "₹38,00,000 – ₹52,00,000",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 6512.981667001441,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__combo",
+      "field_name": "job_title",
+      "proposed_selector": "css=.cc382-title",
+      "resolved_values": [
+        "Senior Platform Engineer"
+      ],
+      "anchor": "Senior Platform Engineer",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5562.708541001484,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__combo",
+      "field_name": "company",
+      "proposed_selector": "css=.ce3ab-name",
+      "resolved_values": [
+        "Northwind Systems"
+      ],
+      "anchor": "Northwind Systems",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5562.708541001484,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__combo",
+      "field_name": "salary",
+      "proposed_selector": "css=.c9d0f-range",
+      "resolved_values": [
+        "₹38,00,000 – ₹52,00,000"
+      ],
+      "anchor": "₹38,00,000 – ₹52,00,000",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5562.708541001484,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__tag_swap",
+      "field_name": "job_title",
+      "proposed_selector": "css=h2.posting-title",
+      "resolved_values": [
+        "Senior Platform Engineer"
+      ],
+      "anchor": "Senior Platform Engineer",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4428.001625001343,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__tag_swap",
+      "field_name": "company",
+      "proposed_selector": "css=.company-name",
+      "resolved_values": [
+        "Northwind Systems"
+      ],
+      "anchor": "Northwind Systems",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 4428.001625001343,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "job__wrapper_insert",
+      "field_name": "company",
+      "proposed_selector": "css=.company-name",
+      "resolved_values": [
+        "Northwind Systems"
+      ],
+      "anchor": "Northwind Systems",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 3943.445042001258,
+      "drift_type": "wrapper_insert",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__attr_strip",
+      "field_name": "title",
+      "proposed_selector": "css=h1.product-title",
+      "resolved_values": [
+        "Apple MacBook Pro 14-inch"
+      ],
+      "anchor": "Apple MacBook Pro 14-inch",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5031.214958002238,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__attr_strip",
+      "field_name": "price",
+      "proposed_selector": "css=span.price-value",
+      "resolved_values": [
+        "₹1,49,900"
+      ],
+      "anchor": "₹1,49,900",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5031.214958002238,
+      "drift_type": "attr_strip",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__class_rename",
+      "field_name": "title",
+      "proposed_selector": "css=.c7425-title",
+      "resolved_values": [
+        "Apple MacBook Pro 14-inch"
+      ],
+      "anchor": "Apple MacBook Pro 14-inch",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2573.6918749971665,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__class_rename",
+      "field_name": "price",
+      "proposed_selector": "css=.cb8af-value",
+      "resolved_values": [
+        "₹1,49,900"
+      ],
+      "anchor": "₹1,49,900",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2573.6918749971665,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__class_rename",
+      "field_name": "rating",
+      "proposed_selector": "css=.c48b1-value",
+      "resolved_values": [
+        "4.6"
+      ],
+      "anchor": "4.6",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2573.6918749971665,
+      "drift_type": "class_rename",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__combo",
+      "field_name": "title",
+      "proposed_selector": "css=.c7425-title",
+      "resolved_values": [
+        "Apple MacBook Pro 14-inch"
+      ],
+      "anchor": "Apple MacBook Pro 14-inch",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2836.250459000439,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__combo",
+      "field_name": "price",
+      "proposed_selector": "css=.cb8af-value",
+      "resolved_values": [
+        "₹1,49,900"
+      ],
+      "anchor": "₹1,49,900",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2836.250459000439,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__combo",
+      "field_name": "rating",
+      "proposed_selector": "css=.c48b1-value",
+      "resolved_values": [
+        "4.6"
+      ],
+      "anchor": "4.6",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 2836.250459000439,
+      "drift_type": "combo",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__tag_swap",
+      "field_name": "title",
+      "proposed_selector": "css=h2.product-title",
+      "resolved_values": [
+        "Apple MacBook Pro 14-inch"
+      ],
+      "anchor": "Apple MacBook Pro 14-inch",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5525.071750002098,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__tag_swap",
+      "field_name": "price",
+      "proposed_selector": "css=.price-value[data-price-amount]",
+      "resolved_values": [
+        "₹1,49,900"
+      ],
+      "anchor": "₹1,49,900",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5525.071750002098,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__tag_swap",
+      "field_name": "rating",
+      "proposed_selector": "css=.rating-value",
+      "resolved_values": [
+        "4.6"
+      ],
+      "anchor": "4.6",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5525.071750002098,
+      "drift_type": "tag_swap",
+      "status": "healed"
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "product__wrapper_insert",
+      "field_name": "rating",
+      "proposed_selector": "xpath=//span[@class='rating-value']",
+      "resolved_values": [
+        "4.6"
+      ],
+      "anchor": "4.6",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 5397.788375001255,
+      "drift_type": "wrapper_insert",
+      "status": "healed"
+    }
+  ]
+}
