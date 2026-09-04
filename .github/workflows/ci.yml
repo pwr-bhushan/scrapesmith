@@ -33,12 +33,15 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -e '.[dev]'
       - run: ruff check .
+      # The service container starts an empty database. Without this the Postgres-gated
+      # tests do not skip (Postgres is reachable) — they fail on "relation does not exist".
+      - run: alembic upgrade head
       - run: pytest -q
 
   frontend:
@@ -47,8 +50,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
       - run: npm install
