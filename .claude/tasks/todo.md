@@ -175,6 +175,17 @@ DQ `ok`, **anchor check caught it** → `suspect`. The §10 thesis, demonstrated
 - [ ] Inject top-k into `build_prompt`; `--k` on the CLI
 - [ ] Sweep k ∈ {0,1,3,5}; `compare_metrics` regression guard; before/after table in the README
 
+### C — UI visual design (deferred, raised 2026-09-05)
+The frontend works but looks bad. Functionality is not in question — this is purely visual.
+Deferred deliberately: B2 is the differentiating work, and restyling now would churn the same
+components again afterwards. Do it after B2, before showing the repo to anyone.
+
+- [ ] Decide the approach first (design system vs. hand-rolled Tailwind pass) — the screenshots in
+      `docs/img/` are in the README, so whatever lands here has to be re-shot
+- [ ] Components in scope: upload, picker + `PickPopover`, canary, batch results, `HealReview`,
+      `VersionPanel`, advanced mode
+- [ ] Re-shoot the four README screenshots afterwards
+
 ---
 
 ## Review
