@@ -64,6 +64,7 @@ export default function RenderFrame({ batchId }: { batchId: string }) {
           <PickPopover
             batchId={batchId}
             index={index}
+            filename={current?.filename ?? ""}
             pick={pick}
             onConfirm={(f) => {
               setFields((prev) => [...prev, f]);

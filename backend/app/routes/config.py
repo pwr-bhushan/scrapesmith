@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import UploadBatch
+from app.presets import default_dq
 from app.storage import create_config_version, latest_config_version
 
 router = APIRouter()
@@ -19,10 +19,10 @@ class ConfigField(BaseModel):
     name: str
     selector: str
     scope: str = "single"  # "single" | "list"
-    list_parent_selector: Optional[str] = None
-    type: Optional[str] = None  # Phase 3 inference
-    dq: Optional[dict] = None  # Phase 3 preset default; evaluated by the Phase 4 DQ engine
-    anchor: Optional[dict] = None  # Phase 4 §10: {value, fingerprint} captured at Confirm
+    list_parent_selector: str | None = None
+    type: str | None = None  # Phase 3 inference
+    dq: dict | None = None  # Phase 3 preset default; evaluated by the Phase 4 DQ engine
+    anchor: dict | None = None  # Phase 4 §10: {value, fingerprint} captured at Confirm
 
 
 class SaveConfigRequest(BaseModel):
@@ -39,9 +39,16 @@ async def save_config(
     if not req.fields:
         raise HTTPException(status_code=400, detail="config needs at least one field")
 
-    cv = await create_config_version(
-        session, batch.domain_id, [f.model_dump() for f in req.fields]
-    )
+    # A field typed by the operator carries its preset's DQ. The picker only forwards a dq block
+    # when the operator's chosen type matched auto-inference, so choosing "price" by hand used to
+    # save dq=null — and a field with no rule can never fail, which silently disables drift
+    # detection on exactly the fields someone cared enough to label. `{}` stays empty (advanced
+    # mode's way of saying "no checks"); only an absent block is defaulted.
+    fields = [
+        {**d, "dq": default_dq(d["type"])} if d["dq"] is None and d["type"] else d
+        for d in (f.model_dump() for f in req.fields)
+    ]
+    cv = await create_config_version(session, batch.domain_id, fields)
     batch.config_version_id = cv.id
     await session.commit()
     return {"config_version_id": str(cv.id), "version": cv.version, "field_count": len(req.fields)}

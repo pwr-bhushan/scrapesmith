@@ -1,8 +1,6 @@
 """POST /infer — click element context -> field type + confidence (§8). GET /presets."""
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -15,7 +13,7 @@ router = APIRouter()
 class InferRequest(BaseModel):
     text: str = ""
     itemprop: str = ""
-    data: Optional[dict] = None
+    data: dict | None = None
     label: str = ""
     use_llm: bool = False
 

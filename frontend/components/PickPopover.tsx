@@ -21,12 +21,14 @@ export interface PendingPick {
 export default function PickPopover({
   batchId,
   index,
+  filename,
   pick,
   onConfirm,
   onCancel,
 }: {
   batchId: string;
   index: number;
+  filename: string;
   pick: PendingPick;
   onConfirm: (field: {
     name: string;
@@ -35,7 +37,7 @@ export default function PickPopover({
     list_parent_selector: string | null;
     type: string | null;
     dq: Record<string, unknown> | null;
-    anchor: { value: string; fingerprint?: unknown } | null;
+    anchor: { value: string; file?: string; fingerprint?: unknown } | null;
   }) => void;
   onCancel: () => void;
 }) {
@@ -106,8 +108,12 @@ export default function PickPopover({
       list_parent_selector: result.list_parent_selector,
       type: chosenType || inferred?.type || null,
       dq: chosenType === inferred?.type ? inferred?.dq ?? null : null,
-      // anchor (§10): snapshot the resolved value + descriptor fingerprint at confirm
-      anchor: result.values[0] ? { value: result.values[0], fingerprint: pick.descriptor } : null,
+      // anchor (§10): snapshot the resolved value + descriptor fingerprint at confirm, and the
+      // page it was read off — heal compares the anchor on that page, not on whichever file
+      // happens to represent the drift cluster.
+      anchor: result.values[0]
+        ? { value: result.values[0], file: filename, fingerprint: pick.descriptor }
+        : null,
     });
   }
 

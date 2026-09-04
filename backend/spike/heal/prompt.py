@@ -38,11 +38,17 @@ def build_prompt(
         "because their selectors no longer match after a site redesign.\n\n"
         f"Fields to heal:\n{field_lines}\n\n"
         "HTML (cleaned):\n"
-        "```\n"
+        "```html\n"
         f"{cleaned_html}\n"
         "```\n\n"
+        "Each new selector must resolve against the HTML above and must select the node "
+        "whose text is the field's value. Prefer id, then data-* / itemprop / role, then a "
+        "meaningful class; avoid positional paths.\n"
         "Respond with a JSON object mapping each field name to a new selector.\n"
         "Every selector MUST be prefixed with either 'css=' or 'xpath='.\n"
-        "Example:\n"
-        '{"price": "css=.a-price-whole", "title": "css=.pdp-product-name"}\n'
+        # The example is deliberately generic. It used to read `css=.a-price-whole` /
+        # `css=.pdp-product-name` — the literal correct answers for the drift fixture, which
+        # would score as model skill on any benchmark built from that corpus.
+        "Format example (do not copy these selectors):\n"
+        '{"<field_name>": "css=#some-id", "<other_field>": "xpath=//tag[@data-x=\'y\']"}\n'
     )

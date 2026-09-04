@@ -6,7 +6,7 @@ How to run Scrapesmith locally, in CI, and what to harden before production.
 
 | Layer | Tech |
 |-------|------|
-| Backend | Python 3.9, FastAPI (async), SQLAlchemy 2 (async) + asyncpg, Alembic |
+| Backend | Python 3.12, FastAPI (async), SQLAlchemy 2 (async) + asyncpg, Alembic |
 | Data / jobs | Postgres 16, Redis 7 + arq |
 | Rendering | Playwright (headless Chromium) |
 | Frontend | Next.js 15 (App Router, TypeScript) |
@@ -14,7 +14,7 @@ How to run Scrapesmith locally, in CI, and what to harden before production.
 
 ## Prerequisites
 
-- Python **3.9** (the venv is pinned to 3.9; avoid 3.10+ syntax)
+- Python **3.12** (`requires-python = ">=3.12"`)
 - Node 18+ (developed on 22/25)
 - Postgres 16 and Redis 7 — via Docker **or** local services
 - Chromium for Playwright (`playwright install chromium`)
@@ -40,7 +40,7 @@ psql -d postgres -c "CREATE DATABASE scrapesmith OWNER scrapesmith;"
 
 ```bash
 cd backend
-python3.9 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 .venv/bin/playwright install chromium
 .venv/bin/alembic upgrade head                       # create the 6 tables

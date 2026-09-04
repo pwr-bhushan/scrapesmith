@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  CONFIG_VERSION_CREATED,
   VersionDiff,
   VersionInfo,
   diffVersions,
@@ -23,10 +24,17 @@ export default function VersionPanel({ batchId }: { batchId: string }) {
   }
 
   useEffect(() => {
+    let dId: string | null = null;
+    const reload = () => dId && refresh(dId);
     getBatch(batchId).then((b) => {
+      dId = b.domain_id;
       setDomainId(b.domain_id);
       refresh(b.domain_id);
     });
+    // Saving a config or accepting a heal happens in a sibling island, so the list would
+    // otherwise stay stuck on whatever existed at mount.
+    window.addEventListener(CONFIG_VERSION_CREATED, reload);
+    return () => window.removeEventListener(CONFIG_VERSION_CREATED, reload);
   }, [batchId]);
 
   async function showDiff() {

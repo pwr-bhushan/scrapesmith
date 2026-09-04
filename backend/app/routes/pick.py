@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -22,7 +22,7 @@ class ValidateRequest(BaseModel):
     index: int
     descriptor: dict[str, Any]
     scope: str = "single"  # "single" | "list"
-    list_parent_selector: Optional[str] = None
+    list_parent_selector: str | None = None
 
 
 class CheckRequest(BaseModel):

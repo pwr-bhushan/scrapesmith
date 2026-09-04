@@ -10,14 +10,13 @@ non-numeric chars before float(); otherwise only strip commas (so a bare currenc
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 STATUSES = ("ok", "empty", "regex_fail", "type_fail", "range_fail", "out_of_scope")
 
 _URL_RE = re.compile(r"^https?://\S+$")
 
 
-def check_dq(value: Optional[str], dq: Optional[dict], in_scope: bool = True) -> str:
+def check_dq(value: str | None, dq: dict | None, in_scope: bool = True) -> str:
     dq = dq or {}
     if not in_scope:
         return "out_of_scope"
@@ -62,7 +61,7 @@ def check_dq(value: Optional[str], dq: Optional[dict], in_scope: bool = True) ->
     return "ok"
 
 
-def normalize(value: Optional[str], kind: str = "text") -> str:
+def normalize(value: str | None, kind: str = "text") -> str:
     """Canonical form for anchor comparison (§10)."""
     if value is None:
         return ""

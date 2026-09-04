@@ -8,7 +8,6 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Optional
 
 from playwright.async_api import async_playwright
 
@@ -73,9 +72,18 @@ async def _resolve(page, selector: str):
 
 
 async def post_check(
-    proposals: dict, rep_path: str, cluster_paths: list, fields_by_name: dict, render_js: bool
+    proposals: dict,
+    rep_path: str,
+    cluster_paths: list,
+    fields_by_name: dict,
+    render_js: bool,
+    paths_by_filename: dict | None = None,
 ) -> dict:
-    """Run §10 steps 1–6 per field. Returns {field: {selector, status, value, anchor_ok}}."""
+    """Run §10 steps 1–6 per field. Returns {field: {selector, status, value, anchor_ok}}.
+
+    ``paths_by_filename`` maps every filename in the cluster to its path so the step-5 anchor
+    check can run on the page the anchor was captured from — see ``_anchor_check``.
+    """
     out: dict = {}
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -88,7 +96,6 @@ async def post_check(
             for name, selector in proposals.items():
                 field = fields_by_name.get(name, {})
                 dq = field.get("dq") or {}
-                anchor = (field.get("anchor") or {}).get("value")
                 kind = "number" if dq.get("parses_as") == "number" else "text"
 
                 # step 1: valid prefix
@@ -109,10 +116,10 @@ async def post_check(
                     out[name] = _bad(selector, "still_broken", value)
                     continue
                 # step 5: anchor check
-                if anchor is None:
-                    anchor_ok = None
-                else:
-                    anchor_ok = normalize(value, kind) == normalize(anchor, kind)
+                anchor_ok = await _anchor_check(
+                    browser, field, selector, kind, value, rep_path,
+                    paths_by_filename, render_js,
+                )
                 # step 6: validate on up to 2 more cluster files
                 extra_ok = await _validate_others(
                     browser, cluster_paths, selector, dq, render_js
@@ -130,20 +137,66 @@ async def post_check(
     return out
 
 
-def _bad(selector: str, status: str, value: Optional[str] = None) -> dict:
+def _bad(selector: str, status: str, value: str | None = None) -> dict:
     return {"selector": selector, "status": status, "value": value, "anchor_ok": None}
+
+
+async def _resolve_at(browser, path: str, selector: str, render_js: bool):
+    """Open one file in a fresh egress-blocked context and resolve the selector against it."""
+    ctx = await browser.new_context(java_script_enabled=render_js)
+    try:
+        page = await ctx.new_page()
+        await page.route("**/*", _block_egress)
+        await page.goto(Path(path).resolve().as_uri())
+        return await _resolve(page, selector)
+    finally:
+        await ctx.close()
+
+
+async def _anchor_check(
+    browser, field, selector, kind, rep_value, rep_path, paths_by_filename, render_js
+) -> bool | None:
+    """§10 step 5 — does the proposal reproduce the value the operator confirmed?
+
+    An anchor is an assertion about ONE page: "on this page, this field reads ₹1,49,900".
+    It only means anything on that page. Comparing it to whatever page happens to be the
+    cluster representative compares two different products, which diverges every time — and
+    since `healed` requires `anchor_ok is not False`, that made `healed` unreachable on any
+    batch of distinct records. Anchors captured before the source page was recorded fall
+    back to the representative, which is the old behaviour and the best available guess.
+
+    Returns True/False when the anchor's page is available to check, None when it is not —
+    None means "this guard has nothing to say here", not "passed".
+    """
+    anchor = field.get("anchor") or {}
+    expected = anchor.get("value")
+    if expected is None:
+        return None
+
+    source = anchor.get("file")
+    if not source:
+        return normalize(rep_value, kind) == normalize(expected, kind)
+
+    path = (paths_by_filename or {}).get(source)
+    if path is None:
+        # The anchor's page is not in this cluster, i.e. it still parses fine and did not
+        # drift. It cannot speak to a proposal aimed at the drifted markup.
+        return None
+
+    if path == rep_path:
+        value = rep_value
+    else:
+        _, value = await _resolve_at(browser, path, selector, render_js)
+    if value is None:
+        return False
+    return normalize(value, kind) == normalize(expected, kind)
 
 
 async def _validate_others(browser, cluster_paths, selector, dq, render_js) -> bool:
     """Both of the next ≤2 cluster files must resolve + pass DQ (§10 step 6)."""
     checked = 0
     for path in cluster_paths[:2]:
-        ctx = await browser.new_context(java_script_enabled=render_js)
-        page = await ctx.new_page()
-        await page.route("**/*", _block_egress)
-        await page.goto(Path(path).resolve().as_uri())
-        count, value = await _resolve(page, selector)
-        await ctx.close()
+        count, value = await _resolve_at(browser, path, selector, render_js)
         if not count or check_dq(value, dq) != "ok":
             return False
         checked += 1

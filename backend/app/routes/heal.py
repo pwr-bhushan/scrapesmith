@@ -88,8 +88,11 @@ async def heal_propose(req: HealRequest, session: AsyncSession = Depends(get_ses
             proposed = provider.propose(cleaned, specs, failures)
             selectors = {name: pr.selector for name, pr in proposed.items()}
             cluster_paths = [f["path"] for f in cl["files"][1:]]
+            # the anchor check needs to reach the page its value was captured on (§10 step 5)
+            paths_by_filename = {f["file"]: f["path"] for f in cl["files"]}
             checked = await post_check(
-                selectors, rep["path"], cluster_paths, fields_by_name, render_js
+                selectors, rep["path"], cluster_paths, fields_by_name, render_js,
+                paths_by_filename,
             )
             # attach the anchor value for the value-first diff (5.7)
             for name, c in checked.items():

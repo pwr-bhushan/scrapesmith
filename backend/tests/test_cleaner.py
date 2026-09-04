@@ -112,6 +112,45 @@ class TestUnicodePreservation:
 
 
 # ---------------------------------------------------------------------------
+# Test: the tag tree survives — the whole point of the prompt
+# ---------------------------------------------------------------------------
+
+STRUCTURE_HTML = """<html><body>
+  <div id="detail" data-testid="pdp" style="color:red" onclick="x()">
+    <h2 class="product-name">Widget</h2>
+    <a href="/p/1" class="buy">Buy</a>
+  </div>
+</body></html>"""
+
+
+class TestStructurePreservation:
+    """Regression: clean_html used to call soup.get_text(), so the heal prompt asked the
+    model to write CSS selectors for a DOM it could not see. It answered with the old
+    broken selectors, and every heal came back still_broken."""
+
+    def test_tags_survive(self):
+        result = clean_html(STRUCTURE_HTML)
+        assert "<h2" in result and "</h2>" in result
+
+    def test_selectable_attributes_survive(self):
+        result = clean_html(STRUCTURE_HTML)
+        assert 'id="detail"' in result
+        assert 'class="product-name"' in result
+        assert 'data-testid="pdp"' in result
+
+    def test_unselectable_attributes_dropped(self):
+        """href/style/onclick can't appear in a stable selector — they are prompt weight."""
+        result = clean_html(STRUCTURE_HTML)
+        assert "href" not in result
+        assert "style" not in result
+        assert "onclick" not in result
+
+    def test_text_still_survives_alongside_tags(self):
+        result = clean_html(STRUCTURE_HTML)
+        assert "Widget" in result
+
+
+# ---------------------------------------------------------------------------
 # Test: token cap and chunk hook
 # ---------------------------------------------------------------------------
 

@@ -76,6 +76,76 @@ async def test_post_check_healed_vs_still_broken(files):
     assert suspect["price"]["anchor_ok"] is False
 
 
+# ---- step 5: the anchor is an assertion about ONE page ----
+
+OTHER_PRODUCT = "<html><body><main><span data-price='new'>250</span></main></body></html>"
+
+
+@pytest.fixture()
+def two_products():
+    """rep is a different product from the page the operator picked on — the normal case."""
+    paths = []
+    for html in (OTHER_PRODUCT, AFTER):  # rep = 250, anchor page = 100
+        f = tempfile.NamedTemporaryFile("w", suffix=".html", delete=False)
+        f.write(html)
+        f.close()
+        paths.append(f.name)
+    yield paths
+    for p in paths:
+        Path(p).unlink(missing_ok=True)
+
+
+def _priced(anchor):
+    dq = {"required": True, "parses_as": "number"}
+    return {"price": {"name": "price", "dq": dq, "anchor": anchor}}
+
+
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_anchor_is_checked_on_the_page_it_was_captured_from(two_products):
+    """Regression: the anchor used to be compared against the cluster representative.
+
+    Every file in a batch holds a different record, so the representative's price is not the
+    anchor's price, `anchor_ok` was always False, and `healed` was unreachable in practice.
+    """
+    rep, anchor_page = two_products
+    fields = _priced({"value": "100", "file": "anchor.html"})
+    paths = {"rep.html": rep, "anchor.html": anchor_page}
+
+    checked = await post_check(
+        {"price": "css=[data-price]"}, rep, [anchor_page], fields, False, paths
+    )
+    # rep reads 250, but the anchor page still reads the confirmed 100 -> healed
+    assert checked["price"]["anchor_ok"] is True
+    assert checked["price"]["status"] == "healed"
+
+
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_anchor_still_catches_a_wrong_value_on_its_own_page(two_products):
+    """The guard must keep firing: a selector grabbing the wrong node on the anchor page."""
+    rep, anchor_page = two_products
+    fields = _priced({"value": "999", "file": "anchor.html"})
+    paths = {"rep.html": rep, "anchor.html": anchor_page}
+
+    checked = await post_check(
+        {"price": "css=[data-price]"}, rep, [anchor_page], fields, False, paths
+    )
+    assert checked["price"]["anchor_ok"] is False
+    assert checked["price"]["status"] == "suspect"
+
+
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_anchor_page_outside_the_cluster_is_unknown_not_failed(two_products):
+    """If the anchor's page didn't drift it isn't in the cluster and can say nothing."""
+    rep, other = two_products
+    fields = _priced({"value": "100", "file": "not-in-this-cluster.html"})
+
+    checked = await post_check(
+        {"price": "css=[data-price]"}, rep, [other], fields, False, {"rep.html": rep}
+    )
+    assert checked["price"]["anchor_ok"] is None  # unknown, not False
+    assert checked["price"]["status"] == "healed"
+
+
 # ---- route: propose (model unavailable) + accept -> new version. pg + Playwright gated. ----
 import uuid as _uuid  # noqa: E402
 

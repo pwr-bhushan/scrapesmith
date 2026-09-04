@@ -1,12 +1,8 @@
-"""SQLAlchemy models — the 6 tables from design plan §6.
-
-Python 3.9: use typing.Optional (not `X | None`) so SQLAlchemy's Mapped[] resolution works.
-"""
+"""SQLAlchemy models — the 6 tables from design plan §6."""
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -45,15 +41,15 @@ class ConfigVersion(Base):
     domain_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("domain.id"), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = _created_at()
-    created_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    source_file_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_file_id: Mapped[uuid.UUID | None] = mapped_column(
         # use_alter breaks the config_version <-> upload_batch <-> upload_file FK cycle (§6)
         ForeignKey("upload_file.id", use_alter=True, name="fk_cv_source_file"),
         nullable=True,
     )
     fields: Mapped[list] = mapped_column(JSONB, nullable=False)
-    parent_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    parent_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class UploadBatch(Base):
@@ -61,12 +57,12 @@ class UploadBatch(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     domain_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("domain.id"), nullable=False)
-    config_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    config_version_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("config_version.id", use_alter=True, name="fk_batch_config_version"),
         nullable=True,
     )
-    file_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    file_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -75,10 +71,10 @@ class UploadFile(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("upload_batch.id"), nullable=False)
-    filename: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sha256: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    dom_skeleton_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    raw_html_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String, nullable=True)
+    dom_skeleton_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    raw_html_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ParseResult(Base):
@@ -89,9 +85,9 @@ class ParseResult(Base):
     config_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("config_version.id"), nullable=False
     )
-    data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    flags: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    field_status: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    flags: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    field_status: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -100,11 +96,11 @@ class Job(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("upload_batch.id"), nullable=False)
-    kind: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    state: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    progress: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    kind: Mapped[str | None] = mapped_column(String, nullable=True)
+    state: Mapped[str | None] = mapped_column(String, nullable=True)
+    progress: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = _created_at()
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )

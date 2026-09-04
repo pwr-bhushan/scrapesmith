@@ -2,7 +2,18 @@
 
 import { useState } from "react";
 
-import { HealProposeResult, healAccept, healPropose } from "@/lib/api";
+import { HealProposal, HealProposeResult, healAccept, healPropose } from "@/lib/api";
+
+// The anchor cell has to say whether the anchor was *checked*, not just what it holds. An anchor
+// is an assertion about one page; when that page isn't in this drift cluster the check is
+// inapplicable (anchor_ok === null) and showing a bare value next to "healed" reads as a
+// contradiction — the proposal is a different product, so of course it differs.
+function anchorCell(p: HealProposal): { text: string; color: string } {
+  if (!p.anchor) return { text: "—", color: "#94a3b8" };
+  if (p.anchor_ok === true) return { text: `✓ ${p.anchor}`, color: "#15803d" };
+  if (p.anchor_ok === false) return { text: `✗ ${p.anchor}`, color: "#b91c1c" };
+  return { text: `${p.anchor} · not in this cluster`, color: "#94a3b8" };
+}
 
 // Drift + value-first heal review (design §5.6/§5.7): show proposed value vs anchor, suspect flag,
 // accept per field. Values first, selectors are secondary.
@@ -90,7 +101,7 @@ export default function HealReview({ batchId }: { batchId: string }) {
                         </td>
                         <td>{name}</td>
                         <td>{p.value ?? "—"}</td>
-                        <td>{p.anchor ?? "—"}</td>
+                        <td style={{ color: anchorCell(p).color }}>{anchorCell(p).text}</td>
                         <td
                           style={{
                             color:

@@ -15,7 +15,17 @@ FIELD_PRESETS: dict = {
     },
     "price": {
         "regex": r"^[₹$€£]\s?[\d,]+(?:\.\d+)?$|^[\d,]+(?:\.\d+)?\s?[₹$€£]$",
-        "dq": {"required": True, "parses_as": "number", "range": [0, None]},
+        # The dq regex is deliberately looser than the inference regex above: inference must
+        # discriminate price from rating/review_count so it demands a currency glyph, but a field
+        # already known to be a price may legitimately render bare. It also gates check_dq's
+        # aggressive number-cleaning — without a dq regex the glyph survives into float() and
+        # every currency-prefixed price type_fails.
+        "dq": {
+            "required": True,
+            "regex": r"^[₹$€£]?\s?[\d,]+(?:\.\d+)?$|^[\d,]+(?:\.\d+)?\s?[₹$€£]$",
+            "parses_as": "number",
+            "range": [0, None],
+        },
         "synonyms": ["price", "cost", "amount", "mrp", "deal"],
         "itemprop": ["price", "lowPrice", "highPrice"],
     },

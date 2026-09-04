@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Optional
 
 from app.presets import FIELD_PRESETS, default_dq
 
@@ -13,7 +12,7 @@ _ITEMPROP_MAP = {
 }
 
 
-def _result(field_type: Optional[str], confidence: float, source: str) -> dict:
+def _result(field_type: str | None, confidence: float, source: str) -> dict:
     return {
         "type": field_type,
         "confidence": confidence,
@@ -25,7 +24,7 @@ def _result(field_type: Optional[str], confidence: float, source: str) -> dict:
 def infer_type(
     text: str = "",
     itemprop: str = "",
-    data: Optional[dict] = None,
+    data: dict | None = None,
     label: str = "",
 ) -> dict:
     """Deterministic tiers 1–3. Returns {type, confidence, source, dq}."""

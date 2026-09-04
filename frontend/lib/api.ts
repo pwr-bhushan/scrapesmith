@@ -150,7 +150,21 @@ export interface ConfigFieldInput {
   list_parent_selector?: string | null;
   type?: string | null;
   dq?: Record<string, unknown> | null;
-  anchor?: { value: string; fingerprint?: unknown } | null;
+  // `file` is the page the anchor value was read off; heal's anchor check is only meaningful
+  // against that same page, so it has to travel with the value.
+  anchor?: { value: string; file?: string; fingerprint?: unknown } | null;
+}
+
+// The picker, the advanced editor and the heal review all mint config versions, but they are
+// sibling islands under a server component with no shared state. Announcing it here — the one
+// place every version-creating call passes through — lets VersionPanel refetch without the page
+// having to become a client component just to hold a counter.
+export const CONFIG_VERSION_CREATED = "scrapesmith:config-version-created";
+
+function announceNewVersion() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(CONFIG_VERSION_CREATED));
+  }
 }
 
 export async function saveConfig(
@@ -163,7 +177,9 @@ export async function saveConfig(
     body: JSON.stringify({ fields }),
   });
   if (!res.ok) throw new Error(`saveConfig failed: ${res.status}`);
-  return res.json();
+  const body = await res.json();
+  announceNewVersion();
+  return body;
 }
 
 export interface CanaryResult {
@@ -284,7 +300,9 @@ export async function healAccept(
     body: JSON.stringify({ batch_id: batchId, accepted }),
   });
   if (!res.ok) throw new Error(`healAccept failed (${res.status}): ${await res.text()}`);
-  return res.json();
+  const body = await res.json();
+  announceNewVersion();
+  return body;
 }
 
 // ---- Phase 7: versions ----

@@ -8,7 +8,6 @@ from __future__ import annotations
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,7 +76,7 @@ async def list_batch_files(session: AsyncSession, batch_id: uuid.UUID) -> list:
 
 async def file_at_index(
     session: AsyncSession, batch_id: uuid.UUID, index: int
-) -> Optional[UploadFile]:
+) -> UploadFile | None:
     for f in await list_batch_files(session, batch_id):
         if _index_of(f.raw_html_path) == index:
             return f
@@ -89,7 +88,7 @@ async def create_config_version(
     domain_id: uuid.UUID,
     fields: list,
     created_by: str = "user",
-    source_file_id: Optional[uuid.UUID] = None,
+    source_file_id: uuid.UUID | None = None,
 ) -> ConfigVersion:
     """Insert the next config version for a domain, computing version under a per-domain advisory
     lock (§11) so concurrent heals/saves serialize instead of colliding on the unique constraint."""
@@ -118,7 +117,7 @@ async def create_config_version(
 
 async def latest_config_version(
     session: AsyncSession, domain_id: uuid.UUID
-) -> Optional[ConfigVersion]:
+) -> ConfigVersion | None:
     return (
         await session.execute(
             select(ConfigVersion)
@@ -141,7 +140,7 @@ async def list_config_versions(session: AsyncSession, domain_id: uuid.UUID) -> l
     )
 
 
-async def effective_config_version(session: AsyncSession, batch) -> Optional[ConfigVersion]:
+async def effective_config_version(session: AsyncSession, batch) -> ConfigVersion | None:
     """The config a batch runs against: pinned version if set, else the domain's latest (§11)."""
     if batch.config_version_id is not None:
         cv = await session.get(ConfigVersion, batch.config_version_id)
@@ -152,7 +151,7 @@ async def effective_config_version(session: AsyncSession, batch) -> Optional[Con
 
 async def config_version_at(
     session: AsyncSession, domain_id: uuid.UUID, version: int
-) -> Optional[ConfigVersion]:
+) -> ConfigVersion | None:
     return (
         await session.execute(
             select(ConfigVersion).where(

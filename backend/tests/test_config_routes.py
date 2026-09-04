@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.config import settings
 from app.main import app
+from app.presets import default_dq
 from tests._svc import url_reachable
 
 pg = pytest.mark.skipif(
@@ -52,6 +53,34 @@ async def test_save_and_get_config_increments_version():
         # second save for same domain -> version 2
         r2 = await c.post(f"/batch/{batch_id}/config", json=fields)
         assert r2.json()["version"] == 2
+
+
+@pg
+async def test_typed_field_without_dq_gets_its_preset_default():
+    """A field the operator typed by hand arrives with dq=null; the preset fills it in.
+
+    Regression: the picker only forwards a dq block when the chosen type matched auto-inference,
+    so a hand-picked type saved no rule at all — and a field with no rule can never fail DQ,
+    silently disabling drift detection on it. `{}` means "no checks" and is left alone.
+    """
+    async with _client() as c:
+        batch_id = await _upload(c)
+        await c.post(
+            f"/batch/{batch_id}/config",
+            json={
+                "fields": [
+                    {"name": "price", "selector": "css=.price", "type": "price"},
+                    {"name": "note", "selector": "css=#title", "type": "title", "dq": {}},
+                    {"name": "bare", "selector": "css=#title"},
+                ]
+            },
+        )
+        fields = (await c.get(f"/batch/{batch_id}/config")).json()["fields"]
+
+    by_name = {f["name"]: f for f in fields}
+    assert by_name["price"]["dq"] == default_dq("price")
+    assert by_name["note"]["dq"] == {}  # explicit empty survives
+    assert by_name["bare"]["dq"] is None  # no type -> nothing to default from
 
 
 @pg

@@ -1,5 +1,6 @@
 """app DQ engine — all 6 statuses + normalize."""
 from app.dq import check_dq, normalize
+from app.presets import default_dq
 
 
 def test_empty_required_vs_optional():
@@ -37,6 +38,20 @@ def test_len_bounds():
 def test_url_type():
     assert check_dq("https://x.com/a", {"parses_as": "url"}) == "ok"
     assert check_dq("not a url", {"parses_as": "url"}) == "type_fail"
+
+
+def test_price_preset_accepts_real_prices():
+    """The shipped price preset must pass the prices it exists to match.
+
+    Regression: its dq block carried no regex, so check_dq took the comma-only cleaning branch
+    and float("₹149900") raised — every currency-prefixed price type_failed.
+    """
+    dq = default_dq("price")
+    for good in ("₹1,49,900", "$1,299.00", "149900", "1,49,900", "€89", "72,990 ₹"):
+        assert check_dq(good, dq) == "ok", good
+    assert check_dq("Only 3 left", dq) == "regex_fail"  # text must not clean down to a number
+    assert check_dq("₹", dq) == "regex_fail"  # bare glyph, no digits
+    assert check_dq("", dq) == "empty"  # still required
 
 
 def test_normalize():
