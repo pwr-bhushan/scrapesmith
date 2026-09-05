@@ -15,7 +15,7 @@ import pathlib
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 
 @dataclass
@@ -59,6 +59,10 @@ class BenchResult:
     # Verdict from the product's own gate, app.heal.post_check: healed | suspect | still_broken.
     # "unchecked" means post_check was not run for this result (synthetic results in tests).
     status: str = "unchecked"
+    # Few-shot examples this proposal actually saw. The CLI records the *requested* k; retrieval
+    # returns fewer when the partition leaves a small pool, and one page contributes several
+    # entries, so an arm labelled k=5 is not self-evidently a 5-example run without this.
+    n_examples: int = 0
 
 
 def load_case(case_dir: str) -> BenchCase:
@@ -102,12 +106,23 @@ def load_case(case_dir: str) -> BenchCase:
 def run_bench(
     cases: List[BenchCase],
     providers: List[Any],  # List[HealProvider] — loosely typed
+    k: int = 0,
+    memory: Sequence[Mapping[str, Any]] = (),
+    partition: str = "loo",
 ) -> List[BenchResult]:
     """Run all providers against all cases.
 
     Args:
         cases: List of ``BenchCase`` objects.
         providers: List of ``HealProvider`` instances.
+        k: Few-shot examples to retrieve from ``memory``. 0 (the default) is the baseline arm
+            and takes the identical *code path* as before heal memory existed — but not the
+            identical configuration: B1's numbers were sampled at the model default with a
+            4096 window, and every arm here is greedy at 8192. The k=0 arm has to be
+            re-measured under the current provider before any k>0 arm is compared to it.
+        memory: Heal-memory entries from ``spike.memory.load_store``.
+        partition: ``"loo"`` or ``"lobo"`` — which entries a case may not retrieve.
+            Only consulted when ``k > 0``.
 
     Returns:
         Flat list of ``BenchResult`` objects (one per provider×case×field).
@@ -138,9 +153,16 @@ def run_bench(
             ]
 
             cleaned = clean_html(case.after_html)
+            examples = _retrieve_examples(case, k, memory, partition)
 
             t0 = time.monotonic()
-            proposals = provider.propose(cleaned, field_specs, failures)
+            # Called positionally when there is nothing to retrieve, so the k=0 arm matches the
+            # pre-memory code path down to the call site — and so a provider written against the
+            # old 3-argument signature still works.
+            if examples:
+                proposals = provider.propose(cleaned, field_specs, failures, examples=examples)
+            else:
+                proposals = provider.propose(cleaned, field_specs, failures)
             latency_ms = (time.monotonic() - t0) * 1000
 
             statuses = _gate_statuses(case, proposals)
@@ -191,9 +213,48 @@ def run_bench(
                     latency_ms=latency_ms,
                     drift_type=case.drift_type,
                     status=statuses.get(fc.name, "still_broken"),
+                    n_examples=len(examples),
                 ))
 
     return results
+
+
+def _retrieve_examples(
+    case: BenchCase,
+    k: int,
+    memory: Sequence[Mapping[str, Any]],
+    partition: str,
+) -> List[Dict[str, Any]]:
+    """Top-k past heals for this case's page, honouring the partition's exclusions."""
+    if k <= 0 or not memory:
+        return []
+    from spike.memory import exclude_for, paths, retrieve
+
+    return retrieve(paths(case.after_html), memory, k, exclude=exclude_for(partition, case))
+
+
+def compare_metrics(
+    baseline: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Compare two metric dicts and say whether the candidate regressed.
+
+    Deltas are candidate − baseline. ``regression`` is True if the candidate heals less
+    **or** resolves more wrong values.
+
+    The second half is the one that matters. Reading ``healed_rate`` alone calls any rise a
+    win, which is the wrong objective for a system whose pitch is "guarded, not trusted": a
+    change that fixes four fields while confidently proposing two more *wrong* values has
+    made the product worse, because a wrong value that passes DQ is exactly what the anchor
+    check exists to catch.
+    """
+    healed_delta = candidate["healed_rate"] - baseline["healed_rate"]
+    wrong_delta = candidate["resolve_but_wrong_rate"] - baseline["resolve_but_wrong_rate"]
+    return {
+        "healed_rate_delta": healed_delta,
+        "resolve_but_wrong_rate_delta": wrong_delta,
+        "regression": bool(wrong_delta > 0 or healed_delta < 0),
+    }
 
 
 def _gate_statuses(case: BenchCase, proposals: Dict[str, Any]) -> Dict[str, str]:

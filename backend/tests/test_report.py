@@ -33,3 +33,21 @@ class TestReportSmoke:
         parsed = json.loads(raw)
         assert "metrics" in parsed
         assert "results" in parsed
+
+    def test_arm_is_recorded_in_both_artifacts(self, tmp_path):
+        """A k>0 report must not be indistinguishable from a k=0 one on disk."""
+        metrics = compute_metrics([])
+        arm = {"provider": "ollama", "k": 3, "partition": "lobo", "memory_entries": 46}
+        write_artifacts([], metrics, output_dir=str(tmp_path), arm=arm)
+        parsed = json.loads((tmp_path / "phase0_report.json").read_text(encoding="utf-8"))
+        assert parsed["arm"] == arm
+        assert "k=3" in (tmp_path / "phase0_report.md").read_text(encoding="utf-8")
+
+    def test_arm_defaults_to_empty_and_adds_no_markdown(self, tmp_path):
+        """Omitting arm must leave the k=0 artifact shape the older reports were written in."""
+        metrics = compute_metrics([])
+        write_artifacts([], metrics, output_dir=str(tmp_path))
+        parsed = json.loads((tmp_path / "phase0_report.json").read_text(encoding="utf-8"))
+        assert parsed["arm"] == {}
+        md = (tmp_path / "phase0_report.md").read_text(encoding="utf-8")
+        assert md.startswith("# Heal Bench Report\n\n## Summary\n\n")

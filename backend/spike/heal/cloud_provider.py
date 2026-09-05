@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Dict, List
+from typing import Any, Dict, List, Mapping, Sequence
 
 from spike.heal.prompt import build_prompt
 from spike.heal.provider import Failure, FieldSpec, HealProvider, Proposal, validate_proposal
@@ -43,10 +43,11 @@ class CloudProvider(HealProvider):
         cleaned_html: str,
         fields: List[FieldSpec],
         failures: List[Failure],
+        examples: Sequence[Mapping[str, Any]] = (),
     ) -> Dict[str, Proposal]:
         import anthropic
 
-        prompt = build_prompt(cleaned_html, fields, failures)
+        prompt = build_prompt(cleaned_html, fields, failures, examples=examples)
         client = anthropic.Anthropic()
         try:
             message = client.messages.create(
