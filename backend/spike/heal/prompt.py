@@ -4,15 +4,44 @@ ponytail: plain f-string template; no Jinja dependency.
 """
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List, Mapping, Sequence
 
 from spike.heal.provider import Failure, FieldSpec
+
+
+def _render_examples(examples: Sequence[Mapping[str, Any]]) -> str:
+    """Render retrieved past heals as a reference block, or "" when there are none.
+
+    Empty must render to the empty string, not to an empty heading: the k=0 arm of the
+    sweep has to reproduce the pre-memory prompt byte for byte, or it is a different
+    experiment from the baseline it gets compared against.
+
+    Entries carry structure and selectors only — never the anchor value. Showing the model
+    a neighbour's correct answer would score as model skill on a corpus built from these
+    same pages.
+    """
+    if not examples:
+        return ""
+    lines = "\n".join(
+        f"  - {e.get('page_type', '?')} page, {e.get('drift_type', '?')} drift, "
+        f"field {e.get('field_name', '?')} ({e.get('field_type', '?')}): "
+        f"{e.get('old_selector', '?')} -> {e.get('healed_selector', '?')}"
+        for e in examples
+    )
+    # No "these are different pages" disclaimer: under --partition loo the nearest neighbour is
+    # the same base page under a different drift transform, so the sentence was false exactly
+    # where it was most reassuring. A claim that has to be conditionally true is worth not making.
+    return (
+        "Selectors that repaired structurally similar pages before:\n"
+        f"{lines}\n\n"
+    )
 
 
 def build_prompt(
     cleaned_html: str,
     fields: List[FieldSpec],
     failures: List[Failure],
+    examples: Sequence[Mapping[str, Any]] = (),
 ) -> str:
     """Build the LLM prompt for selector healing.
 
@@ -20,6 +49,8 @@ def build_prompt(
         cleaned_html: Output of ``clean_html()``.
         fields: All field specs (for context).
         failures: Fields that need new selectors.
+        examples: Past heals retrieved from memory, best match first. Empty (the default)
+            reproduces the pre-memory prompt exactly.
 
     Returns:
         Prompt string ready for the LLM.
@@ -37,6 +68,7 @@ def build_prompt(
         "The following fields could not be extracted from the current HTML "
         "because their selectors no longer match after a site redesign.\n\n"
         f"Fields to heal:\n{field_lines}\n\n"
+        f"{_render_examples(examples)}"
         "HTML (cleaned):\n"
         "```html\n"
         f"{cleaned_html}\n"

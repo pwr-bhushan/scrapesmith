@@ -101,11 +101,16 @@ _OVERLAY_JS = """
     e.preventDefault();
     e.stopPropagation();
     var el = e.target;
+    // rect is viewport-relative to *this* iframe. The parent adds the iframe's own offset and
+    // pins the popover there at click time — it deliberately does not re-anchor on scroll,
+    // because the user is naming a field, not reading the page.
+    var r = el.getBoundingClientRect();
     window.parent.postMessage({
       type: 'scrapesmith-pick',
       descriptor: descriptor(el),
       text: (el.innerText || '').trim().slice(0, 120),
-      listParent: listParent(el)
+      listParent: listParent(el),
+      rect: { top: r.top, left: r.left, width: r.width, height: r.height }
     }, '*');
   }, true);
 })();

@@ -19,7 +19,7 @@ from __future__ import annotations
 import abc
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ class HealProvider(abc.ABC):
         cleaned_html: str,
         fields: List[FieldSpec],
         failures: List[Failure],
+        examples: Sequence[Mapping[str, Any]] = (),
     ) -> Dict[str, Proposal]:
         """Propose healed selectors for the given failures.
 
@@ -69,6 +70,9 @@ class HealProvider(abc.ABC):
             cleaned_html: Cleaned HTML text from ``clean_html()``.
             fields: Full list of ``FieldSpec`` objects for context.
             failures: Fields that failed DQ or resolution.
+            examples: Past heals retrieved from memory. Empty (the default) is the k=0
+                baseline. On the ABC so a provider swap cannot silently drop few-shot
+                examples and leave the sweep measuring k=0 under another name.
 
         Returns:
             Dict mapping field name → ``Proposal``.

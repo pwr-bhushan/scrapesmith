@@ -190,3 +190,108 @@ class TestValidateProposalBadSelector:
         result = validate_proposal(raw, SAMPLE_FAILURES)
         assert "price" in result
         assert "title" not in result
+
+
+# ---------------------------------------------------------------------------
+# B2 — few-shot examples parameter (RED until B2.3)
+# ---------------------------------------------------------------------------
+
+class TestExamplesParameter:
+    """`propose` gains `examples`, defaulting to empty so every existing call site
+    keeps producing the k=0 prompt. Both providers must take it: the bench runs
+    Ollama, but a parameter only one implementation honours is a trap for the next
+    person who switches provider and silently measures k=0.
+    """
+
+    def test_abc_propose_accepts_examples(self):
+        params = inspect.signature(HealProvider.propose).parameters
+        assert "examples" in params
+        assert not params["examples"].default, "examples must default to empty (k=0)"
+
+    def test_ollama_propose_accepts_examples(self):
+        from spike.heal.ollama_provider import OllamaProvider
+
+        params = inspect.signature(OllamaProvider.propose).parameters
+        assert "examples" in params
+        assert not params["examples"].default
+
+    def test_cloud_propose_accepts_examples(self):
+        from spike.heal.cloud_provider import CloudProvider
+
+        params = inspect.signature(CloudProvider.propose).parameters
+        assert "examples" in params
+        assert not params["examples"].default
+
+
+# ---------------------------------------------------------------------------
+# B2.0 — determinism options on OllamaProvider (RED until B2.0)
+# ---------------------------------------------------------------------------
+
+class TestOllamaSamplingOptions:
+    """The bench is unmeasurable without this.
+
+    The provider sends no `options` key today, so Ollama samples at the model default
+    (~0.8): four identical calls on the corpus's largest prompt produced three distinct
+    answers, and four identical bench runs scored 91.7 / 91.7 / 97.9 / 97.9. That 6.25pp
+    spread is wider than the effect heal memory is meant to produce, so no k-sweep can
+    attribute a difference to k until sampling is pinned.
+
+    Measured 2026-09-05: with temperature=0 + seed, four identical calls returned one
+    byte-identical answer.
+    """
+
+    def _capture_payload(self, monkeypatch, provider):
+        """Run propose() against a stubbed httpx.post and return the payload it sent."""
+        import httpx
+
+        captured = {}
+
+        class _Resp:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"response": '{"price": "css=.a-price-whole"}'}
+
+        def _fake_post(url, json=None, timeout=None, **kw):
+            captured["url"] = url
+            captured["payload"] = json
+            return _Resp()
+
+        monkeypatch.setattr(httpx, "post", _fake_post)
+        provider.propose(CLEANED_HTML, SAMPLE_FIELDS, SAMPLE_FAILURES)
+        return captured["payload"]
+
+    def test_defaults_are_deterministic(self):
+        from spike.heal.ollama_provider import OllamaProvider
+
+        p = OllamaProvider()
+        assert p.temperature == 0
+        assert p.seed is not None
+
+    def test_options_sent_in_payload(self, monkeypatch):
+        from spike.heal.ollama_provider import OllamaProvider
+
+        payload = self._capture_payload(monkeypatch, OllamaProvider())
+        assert "options" in payload, "no options key — Ollama will sample at the model default"
+        for key in ("temperature", "seed", "num_ctx"):
+            assert key in payload["options"], f"options missing {key}"
+
+    def test_options_are_overridable(self, monkeypatch):
+        from spike.heal.ollama_provider import OllamaProvider
+
+        p = OllamaProvider(temperature=0.7, seed=99, num_ctx=2048)
+        opts = self._capture_payload(monkeypatch, p)["options"]
+        assert opts["temperature"] == 0.7
+        assert opts["seed"] == 99
+        assert opts["num_ctx"] == 2048
+
+    def test_num_ctx_clears_the_largest_corpus_prompt(self, monkeypatch):
+        """The corpus's largest prompt measures 1244 tokens. num_ctx below that would
+        silently truncate the cleaned HTML, and every k>0 example would push more of the
+        page out of the window — turning "retrieval hurts" into an artifact of truncation.
+        """
+        from spike.heal.ollama_provider import OllamaProvider
+
+        opts = self._capture_payload(monkeypatch, OllamaProvider())["options"]
+        assert opts["num_ctx"] >= 4096

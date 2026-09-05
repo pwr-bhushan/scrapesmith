@@ -3,41 +3,23 @@
 ### Step-by-Step Process
 
 ```
-Step 1:  PLAN       → skill: everything-claude-code:plan          via Agent(model="opus")
-Step 2:  TESTS      → skill: everything-claude-code:tdd            via Agent(model="sonnet")
-Step 3:  IMPLEMENT  → skill: everything-claude-code:build-fix      via Agent(model="sonnet")
-Step 4:  VERIFY     → skill: everything-claude-code:verify         via Agent(model="sonnet")
-Step 5:  REVIEW     → skill: everything-claude-code:python-review + ponytail:ponytail-review  via Agent(model="opus")
-Step 6:  FIX PLAN   → skill: everything-claude-code:plan           via Agent(model="opus")   (for review issues)
-Step 7:  FIX        → skill: everything-claude-code:build-fix      via Agent(model="sonnet")  (after user approval)
-Step 8:  RE-VERIFY  → skill: everything-claude-code:verify         via Agent(model="sonnet")
-Step 9:  COMPLETE   → skill: everything-claude-code:update-docs    via Agent(model="haiku")  (update todo.md + lessons.md)
-Step 10: SAVE       → skill: everything-claude-code:save-session   via Agent(model="haiku")
+Step 1:  PLAN
+Step 2:  TESTS
+Step 3:  IMPLEMENT
+Step 4:  VERIFY
+Step 5:  REVIEW     → skill: ponytail:ponytail-review  via Agent(model="opus")
+Step 6:  FIX PLAN
+Step 7:  FIX
+Step 8:  RE-VERIFY
+Step 9:  COMPLETE (update todo.md + lessons.md)
+Step 10: SAVE
 ```
 
-**Model rationale:**
-- `opus` — deep reasoning tasks: planning, architecture, code review
-- `sonnet` — balanced tasks: test writing, verification
-- `haiku` — fast execution tasks: implementation edits, docs, session save
-
-**CRITICAL — model enforcement:**
-- The `Skill` tool always executes inline in the current session model and does NOT switch models.
-- To actually run a skill under a different model, wrap it in a `general-purpose` Agent with the `model` parameter set:
-  ```
-  Agent(subagent_type="general-purpose", model="opus",   description="...", prompt="Use the Skill tool: skill='everything-claude-code:plan', args='...'")
-  Agent(subagent_type="general-purpose", model="haiku",  description="...", prompt="Use the Skill tool: skill='everything-claude-code:build-fix', args='...'")
-  Agent(subagent_type="general-purpose", model="sonnet", description="...", prompt="Use the Skill tool: skill='everything-claude-code:verify', args='...'")
-  ```
-- `general-purpose` agents have all tools (including `Skill`), so skills invoked this way work correctly.
-- Never call `Skill` directly from the main session when a non-Sonnet model is required.
-
 **At each step:**
-1. At the start of a new session or step, spawn `Agent(model="haiku")` to invoke `everything-claude-code:resume-session`
-2. Complete the step **by spawning an Agent with the correct model that invokes the designated skill — do not call Skill directly from the main session**
+1. At the start of a new session invoke `everything-claude-code:resume-session`
+2. Complete the step
 3. Present results to user
-4. Spawn `Agent(model="haiku")` to invoke `everything-claude-code:save-session`
-5. **Ask: "Ready to proceed to [next step]?"**
-6. Wait for user confirmation before moving on
+4. Invoke `everything-claude-code:save-session` at end of session
 
 **Session file retention:** Keep at most 3 session files in `.claude/sessions/`. After saving a new session, delete the oldest files if count exceeds 3.
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from spike.bench import BenchResult
 
@@ -68,6 +68,7 @@ def write_artifacts(
     results: List[BenchResult],
     metrics: Dict[str, Any],
     output_dir: str = "artifacts",
+    arm: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Write JSON and Markdown report artifacts.
 
@@ -76,10 +77,14 @@ def write_artifacts(
         metrics: Output of ``compute_metrics()``.
         output_dir: Directory to write ``phase0_report.json`` and
             ``phase0_report.md`` into.
+        arm: Which experiment produced these numbers (k, partition, memory size,
+            provider). Without it a k=5 report is byte-indistinguishable from a k=0
+            one, and a k-curve assembled from unlabelled files is unfalsifiable.
     """
     os.makedirs(output_dir, exist_ok=True)
 
     report_data = {
+        "arm": arm or {},
         "metrics": metrics,
         "results": [asdict(r) for r in results],
     }
@@ -90,6 +95,8 @@ def write_artifacts(
     md_path = os.path.join(output_dir, "phase0_report.md")
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# Heal Bench Report\n\n")
+        if arm:
+            f.write("`" + "  ".join(f"{k}={v}" for k, v in arm.items()) + "`\n\n")
         f.write("## Summary\n\n")
         f.write(
             f"- **healed_rate**: {metrics.get('healed_rate', 0.0):.2%}"

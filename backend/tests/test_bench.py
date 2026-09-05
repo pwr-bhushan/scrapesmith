@@ -12,6 +12,8 @@ All tests must FAIL (RED) until Step 3 implements compute_metrics().
 """
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from spike.bench import BenchCase, BenchResult, compute_metrics, load_case
@@ -386,3 +388,135 @@ class TestGeneratedCorpus:
                     f"{case.case_id}/{field.name}: only {len(wrong)} decoy(s) pass its DQ "
                     f"regex — too few for a wrong answer to be plausible"
                 )
+
+
+# ---------------------------------------------------------------------------
+# B2.4 — compare_metrics: the regression guard (RED until B2.4)
+# ---------------------------------------------------------------------------
+
+def _metrics(healed, wrong, correct=None, no_proposal=0.0):
+    return {
+        "anchor_correct_rate": healed if correct is None else correct,
+        "healed_rate": healed,
+        "resolve_but_wrong_rate": wrong,
+        "no_proposal_rate": no_proposal,
+        "per_provider": {},
+        "per_drift_type": {},
+    }
+
+
+class TestCompareMetrics:
+    """The guard that decides whether a k-sweep arm counts as an improvement.
+
+    A naive comparison reads `healed_rate` alone and calls any rise a win. For a system
+    whose pitch is "guarded, not trusted", that is the wrong objective: heal memory that
+    fixes four more fields while confidently proposing two more *wrong* values has made
+    the product worse, because a wrong value that passes DQ is exactly what the anchor
+    check exists to catch. So a rise in resolve_but_wrong_rate is a regression whatever
+    healed_rate did.
+    """
+
+    def test_identical_inputs_are_flat(self):
+        from spike.bench import compare_metrics
+
+        m = _metrics(0.9375, 0.0208)
+        out = compare_metrics(m, m)
+        assert out["healed_rate_delta"] == pytest.approx(0.0)
+        assert out["resolve_but_wrong_rate_delta"] == pytest.approx(0.0)
+        assert out["regression"] is False
+
+    def test_more_heals_and_more_wrong_values_is_a_regression(self):
+        from spike.bench import compare_metrics
+
+        out = compare_metrics(_metrics(0.90, 0.02), _metrics(0.95, 0.06))
+        assert out["healed_rate_delta"] > 0
+        assert out["resolve_but_wrong_rate_delta"] > 0
+        assert out["regression"] is True, (
+            "a rise in resolve_but_wrong_rate is a regression even when healed_rate rises"
+        )
+
+    def test_more_heals_with_flat_wrong_values_is_an_improvement(self):
+        from spike.bench import compare_metrics
+
+        out = compare_metrics(_metrics(0.90, 0.02), _metrics(0.95, 0.02))
+        assert out["regression"] is False
+
+    def test_more_heals_with_fewer_wrong_values_is_an_improvement(self):
+        from spike.bench import compare_metrics
+
+        out = compare_metrics(_metrics(0.90, 0.04), _metrics(0.95, 0.02))
+        assert out["regression"] is False
+
+    def test_fewer_heals_is_a_regression(self):
+        from spike.bench import compare_metrics
+
+        out = compare_metrics(_metrics(0.95, 0.02), _metrics(0.90, 0.02))
+        assert out["healed_rate_delta"] < 0
+        assert out["regression"] is True
+
+    def test_deltas_are_candidate_minus_baseline(self):
+        from spike.bench import compare_metrics
+
+        out = compare_metrics(_metrics(0.90, 0.02), _metrics(0.95, 0.06))
+        assert out["healed_rate_delta"] == pytest.approx(0.05)
+        assert out["resolve_but_wrong_rate_delta"] == pytest.approx(0.04)
+
+
+# ---------------------------------------------------------------------------
+# B2.3 — run_bench keeps its k=0 default path (RED until B2.3)
+# ---------------------------------------------------------------------------
+
+class TestRunBenchMemoryWiring:
+    def test_default_call_signature_unchanged(self):
+        """run_bench(cases, providers) must keep working positionally: the k=0 arm of
+        the sweep has to be the same code path B1's baseline was measured on."""
+        import inspect
+
+        from spike.bench import run_bench
+
+        params = list(inspect.signature(run_bench).parameters)
+        assert params[:2] == ["cases", "providers"]
+
+    def test_k_and_memory_default_to_no_retrieval(self):
+        import inspect
+
+        from spike.bench import run_bench
+
+        params = inspect.signature(run_bench).parameters
+        assert params["k"].default == 0
+        assert not params["memory"].default, "memory must default to empty (k=0 baseline)"
+
+    @pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+    def test_results_record_examples_actually_delivered(self):
+        """The CLI records the *requested* k. Retrieval returns fewer when the partition
+        leaves a small pool, so an artifact labelled k=5 is not self-evidently a 5-example
+        run unless each result carries what it was actually given."""
+        import pathlib as _pathlib
+
+        from spike.bench import load_case, run_bench
+
+        class ExampleAwareProvider(HealProvider):
+            name = "fake-fewshot"
+
+            def propose(self, cleaned_html, fields, failures, examples=()):
+                return {f.field_name: Proposal(selector="css=.x") for f in failures}
+
+        case = load_case(
+            str(_pathlib.Path(__file__).parent.parent / "fixtures" / "drift" / "product__combo")
+        )
+        # Two entries from one other page, so a k=5 request can only ever deliver 2.
+        store = [
+            {
+                "case_id": "other__x", "host": "o.test", "page_type": "product",
+                "drift_type": "combo", "field_name": name, "field_type": "text",
+                "old_selector": "css=.a", "healed_selector": "css=.b",
+                "signature": {"html>body>div": 3, "@id": 1},
+            }
+            for name in ("price", "title")
+        ]
+
+        results = run_bench([case], [ExampleAwareProvider()], k=5, memory=store, partition="lobo")
+        assert results and all(r.n_examples == 2 for r in results)
+
+        baseline = run_bench([case], [FakeProvider({f.name: "css=.x" for f in case.fields})])
+        assert all(r.n_examples == 0 for r in baseline)

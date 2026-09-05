@@ -1,8 +1,12 @@
 "use client";
 
+import { UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { ErrorText } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { uploadBatch } from "@/lib/api";
 
 // Upload screen (design §5.1): file + domain/page_type/JS toggle/notes -> POST /upload -> picker.
@@ -10,6 +14,7 @@ export default function UploadForm() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filename, setFilename] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,50 +33,69 @@ export default function UploadForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "grid", gap: "0.75rem", maxWidth: 520 }}>
-      <label style={box}>
-        ⬆ Drop HTML / .gz / .zip here — or click to browse
-        <input type="file" name="file" accept=".html,.htm,.gz,.zip" required style={{ marginTop: 8 }} />
+    <form onSubmit={onSubmit} className="grid gap-4">
+      <label
+        className="group flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-card)]
+          border border-dashed border-border-strong bg-surface px-6 py-8 text-center
+          transition-colors hover:border-accent hover:bg-accent-soft/40"
+      >
+        <UploadCloud className="size-5 text-faint group-hover:text-accent" />
+        <span className="text-sm font-medium">
+          {filename ?? "Drop HTML, .gz or .zip here"}
+        </span>
+        <span className="text-xs text-muted">or click to browse</span>
+        <input
+          type="file"
+          name="file"
+          accept=".html,.htm,.gz,.zip"
+          required
+          className="sr-only"
+          onChange={(e) => setFilename(e.target.files?.[0]?.name ?? null)}
+        />
       </label>
 
-      <label>
-        Domain
-        <input name="host" placeholder="amazon.in" required style={input} />
-      </label>
-      <label>
-        Page type
-        <input name="page_type" placeholder="product_listing" required style={input} />
-      </label>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input type="checkbox" name="render_js" defaultChecked />
-        Render JS (run page scripts — slower, more faithful)
-      </label>
-      <label>
-        Notes
-        <input name="notes" placeholder="optional" style={input} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Domain">
+          <Input name="host" placeholder="amazon.in" required />
+        </Field>
+        <Field label="Page type">
+          <Input name="page_type" placeholder="product_listing" required />
+        </Field>
+      </div>
+
+      <Field label="Notes">
+        <Input name="notes" placeholder="optional" />
+      </Field>
+
+      <label className="flex items-start gap-2.5 rounded-[var(--radius-control)] border border-border bg-surface p-3">
+        <input
+          type="checkbox"
+          name="render_js"
+          defaultChecked
+          className="mt-0.5 size-4 accent-[var(--color-accent)]"
+        />
+        <span className="text-sm">
+          Render JS
+          <span className="block text-xs text-muted">
+            Run page scripts — slower, more faithful
+          </span>
+        </span>
       </label>
 
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      <button type="submit" disabled={busy} style={button}>
-        {busy ? "Uploading…" : "Continue →"}
-      </button>
+      {error && <ErrorText>{error}</ErrorText>}
+
+      <Button type="submit" variant="primary" disabled={busy} className="justify-self-start">
+        {busy ? "Uploading…" : "Continue"}
+      </Button>
     </form>
   );
 }
 
-const box: React.CSSProperties = {
-  display: "block",
-  border: "2px dashed #94a3b8",
-  borderRadius: 8,
-  padding: "1.5rem",
-  textAlign: "center",
-};
-const input: React.CSSProperties = { display: "block", width: "100%", padding: 6, marginTop: 4 };
-const button: React.CSSProperties = {
-  padding: "0.6rem 1rem",
-  background: "#4f46e5",
-  color: "white",
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-};
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}

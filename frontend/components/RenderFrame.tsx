@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { BatchInfo, ConfigFieldInput, getBatch, renderUrl } from "@/lib/api";
 import FieldPanel from "@/components/FieldPanel";
 import PickPopover, { PendingPick } from "@/components/PickPopover";
+import { Button } from "@/components/ui/button";
+import { ErrorText } from "@/components/ui/empty";
+import { BatchInfo, ConfigFieldInput, getBatch, renderUrl } from "@/lib/api";
 
 // Picker (design §5.2): rendered DOM in a sandboxed iframe, click-to-select via postMessage,
 // popover to name+scope the field, right-hand field panel + save. Prev/Next navigates.
@@ -14,6 +17,7 @@ export default function RenderFrame({ batchId }: { batchId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pick, setPick] = useState<PendingPick | null>(null);
   const [fields, setFields] = useState<ConfigFieldInput[]>([]);
+  const frameRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     getBatch(batchId).then(setBatch).catch((e) => setError(String(e)));
@@ -22,44 +26,74 @@ export default function RenderFrame({ batchId }: { batchId: string }) {
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (e.data && e.data.type === "scrapesmith-pick") {
-        setPick({ descriptor: e.data.descriptor, text: e.data.text, listParent: e.data.listParent });
+        // render.py posts a rect relative to the iframe viewport; add the iframe's own position
+        // so the popover can sit against the element the user actually clicked.
+        const box = frameRef.current?.getBoundingClientRect();
+        const r = e.data.rect;
+        setPick({
+          descriptor: e.data.descriptor,
+          text: e.data.text,
+          listParent: e.data.listParent,
+          anchor:
+            box && r
+              ? { top: box.top + r.top, left: box.left + r.left, width: r.width, height: r.height }
+              : null,
+        });
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  if (error) return <p style={{ color: "#b91c1c" }}>{error}</p>;
-  if (!batch) return <p>Loading…</p>;
+  if (error) return <ErrorText>{error}</ErrorText>;
+  if (!batch) return <p className="text-sm text-muted">Loading…</p>;
 
   const total = batch.files.length;
   const current = batch.files[index];
 
   return (
-    <div style={{ display: "flex", gap: 16 }}>
-      <div style={{ flex: 1, display: "grid", gap: "0.75rem" }}>
-        <div style={{ fontSize: 14, color: "#475569" }}>{current?.filename}</div>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid content-start gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="truncate font-mono text-xs text-muted">{current?.filename}</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Previous file"
+              onClick={() => setIndex((i) => Math.max(0, i - 1))}
+              disabled={index === 0}
+            >
+              <ChevronLeft />
+            </Button>
+            <span className="tabular-nums text-xs text-muted">
+              {index + 1} / {total}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Next file"
+              onClick={() => setIndex((i) => Math.min(total - 1, i + 1))}
+              disabled={index >= total - 1}
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+
         <iframe
           key={index}
+          ref={frameRef}
           sandbox="allow-scripts"
           src={renderUrl(batchId, index)}
-          style={{ width: "100%", height: "65vh", border: "1px solid #cbd5e1", borderRadius: 6 }}
+          className="h-[70vh] w-full rounded-[var(--radius-card)] border border-border bg-surface"
           title={`file-${index}`}
         />
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0}>
-            ◀ Prev
-          </button>
-          <span>
-            File {index + 1} of {total}
-          </span>
-          <button
-            onClick={() => setIndex((i) => Math.min(total - 1, i + 1))}
-            disabled={index >= total - 1}
-          >
-            Next ▶
-          </button>
-        </div>
+        <p className="text-xs text-faint">
+          Hover to highlight, click to capture a field. The page renders in a sandboxed,
+          egress-blocked frame.
+        </p>
+
         {pick && (
           <PickPopover
             batchId={batchId}
@@ -74,6 +108,7 @@ export default function RenderFrame({ batchId }: { batchId: string }) {
           />
         )}
       </div>
+
       <FieldPanel
         batchId={batchId}
         index={index}

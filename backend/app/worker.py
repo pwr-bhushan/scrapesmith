@@ -5,7 +5,7 @@ import uuid
 
 from arq.connections import RedisSettings
 
-from app.config import settings
+from app.config import check_settings, settings
 from app.db import SessionLocal
 from app.models import ConfigVersion, Job
 
@@ -33,6 +33,12 @@ async def batch_parse(ctx: dict, job_id: str, batch_id: str, cv_id: str) -> str:
     return "done"
 
 
+async def startup(ctx: dict) -> None:
+    """Same configuration gate as the API — the worker writes to the same database."""
+    check_settings()
+
+
 class WorkerSettings:
     functions = [noop, batch_parse]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    on_startup = startup

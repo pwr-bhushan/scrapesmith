@@ -1,4 +1,5 @@
 import AdvancedPanel from "@/components/AdvancedPanel";
+import AppShell from "@/components/AppShell";
 import BatchResults from "@/components/BatchResults";
 import HealReview from "@/components/HealReview";
 import RenderFrame from "@/components/RenderFrame";
@@ -12,13 +13,22 @@ export default async function PickPage({
 }) {
   const { batchId } = await params;
   return (
-    <main style={{ fontFamily: "system-ui", padding: "2rem" }}>
-      <h1 style={{ fontSize: 20 }}>Pick fields</h1>
-      <RenderFrame batchId={batchId} />
-      <BatchResults batchId={batchId} />
-      <HealReview batchId={batchId} />
-      <VersionPanel batchId={batchId} />
-      <AdvancedPanel batchId={batchId} index={0} />
-    </main>
+    <AppShell context={<span className="font-mono">{batchId.slice(0, 8)}</span>}>
+      <div className="grid gap-6">
+        <RenderFrame batchId={batchId} />
+
+        {/* Batch and heal read the same config, so they sit side by side rather than stacked —
+            the drift check is only meaningful next to the failure rates that triggered it. */}
+        <div className="grid gap-4 xl:grid-cols-2">
+          <BatchResults batchId={batchId} />
+          <HealReview batchId={batchId} />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <VersionPanel batchId={batchId} />
+          <AdvancedPanel batchId={batchId} index={0} />
+        </div>
+      </div>
+    </AppShell>
   );
 }

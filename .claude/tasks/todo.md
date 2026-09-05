@@ -168,12 +168,159 @@ structurally pinned at 0 — there is no wrong-but-plausible value in the page t
 `product__combo/price` → proposed `div.c0929-price` → resolved `₹2,999` (the header promo strip),
 DQ `ok`, **anchor check caught it** → `suspect`. The §10 thesis, demonstrated on the bench.
 
-⚠️ Headroom is still only 8.33% (4/48). B2 must show a trend across the k-sweep, not a 1-field delta.
+⚠️ **CORRECTED 2026-09-05 (see B2.0).** The 95.83 → 91.67 drop is *within run-to-run noise* — four
+runs of the identical hard-corpus config gave 91.67 / 91.67 / 97.92 / 97.92. The decoys' effect on
+`healed_rate` is **not** established. What holds structurally is that `resolve_but_wrong_rate`
+became *reachable*, which follows from the corpus containing wrong-but-valid values by
+construction. Both rate values above are ±3pp.
 
-### B2 — Heal memory (not started)
-- [ ] `paths()` signature + TF-IDF cosine retriever over `artifacts/heal_memory.jsonl`
-- [ ] Inject top-k into `build_prompt`; `--k` on the CLI
-- [ ] Sweep k ∈ {0,1,3,5}; `compare_metrics` regression guard; before/after table in the README
+### B2 — Heal memory — plan written 2026-09-05, decisions 5–7 resolved (plan §B2.0–B2.4)
+
+**B2.0 — BLOCKING: make the bench reproducible**
+- [x] `OllamaProvider` sends `options: {temperature: 0, seed: 1234, num_ctx: 8192}` — remedy
+      pre-validated 2026-09-05: 4 identical calls gave 3 distinct outputs before vs 1 pinned
+- [x] Verify `num_ctx` is large enough that the cleaned HTML is not already being truncated —
+      **done 2026-09-05: it is.** The corpus's largest prompt (`product__combo`) is 1244 tokens
+      against Ollama 0.33.2's 4096 default, so B1's numbers were never truncated and there is
+      ~2850 tokens of headroom for few-shot examples. Still set explicitly so an Ollama
+      upgrade cannot silently move it.
+- [x] **Exit gate PASSED 2026-09-05:** two consecutive `k=0` runs produced byte-identical
+      proposals for **48/48** fields, and identical metrics to 4dp.
+- [x] Re-run the baseline deterministically. **Pinned baseline = `healed_rate` 95.83% (46/48),
+      `anchor_correct_rate` 95.83%, `resolve_but_wrong_rate` 2.08% (1/48), `no_proposal_rate` 0%.**
+      Note this landed at the *top* of the sampled 91.7–97.9 range, not the bottom — the earlier
+      prediction that greedy decoding would lock in the `div.c0929-price` decoy and depress the
+      number was wrong. That decoy is still the single `resolve_but_wrong` field; it just was not
+      accompanied by the other losses sampling had been producing.
+
+**B2.1 — signature + retriever** (`spike/memory.py`, stdlib only)
+- [x] `paths()` — tag path + attribute **names**, classes excluded (they are what `class_rename`
+      destroys, so class tokens do not survive the drift the retriever must see through)
+- [x] `idf()` / `cosine()` / `retrieve(sig, store, k, exclude)` — `exclude` applied *before*
+      ranking, so excluding a self-match cannot silently return k−1 neighbours
+
+**B2.2 — memory store** (`artifacts/heal_memory.jsonl`)
+- [x] Entry = case/host/page_type/drift_type + field, old→healed selector, signature
+- [x] **No anchor values, no raw HTML** — enforced by test over the whole corpus. The leak scan
+      runs over string fields + signature *keys*; signature values are element counts and one
+      corpus anchor is the single character `"7"`, so a raw substring scan false-positives
+      whenever a page has seven of some tag.
+- [x] Populate only from `anchor_correct AND status == "healed"` on a k=0 run — never ground truth.
+      The seeded store holds **46 entries**, exactly the 46 fields that healed at k=0.
+- [x] Both partitions: LOO (same case excluded) and LOBO (same base page excluded)
+
+**B2.3 — prompt injection**
+- [x] `build_prompt(..., examples=())`; `propose(..., examples=())` on the ABC and both providers
+- [x] **k=0 prompt stays byte-identical** — locked by `tests/golden/prompt_k0.txt`, captured from
+      HEAD before `prompt.py` was touched. `run_bench` also calls `propose` positionally when
+      there is nothing to retrieve, so the k=0 arm matches B1 at the call site too.
+- [x] Log retrieved neighbours per case — see `neighbours.md` (reconstructed post-hoc; `retrieve()`
+      is a pure function of the recorded store + case, so this is exact, not an approximation)
+
+**B2.4 — sweep + compare**
+- [x] `--k`, `--partition {loo,lobo}`, `--memory`, `--save-memory`; 2 k=0 gate runs + 6 sweep arms
+- [x] `compare_metrics(baseline, candidate)` → `regression: True` if `resolve_but_wrong_rate` rises
+      **or** `healed_rate` falls
+- [x] README k-curve for both partitions + the power limit stated (n=48 resolves ~2pp)
+- [x] `write_artifacts(..., arm=...)` records provider/k/partition/memory_entries — without it a
+      k=5 report is byte-indistinguishable on disk from a k=0 one
+- [x] Committed `backend/artifacts/phase0_report.{json,md}` regenerated as the pinned k=0 baseline
+      (95.83%, was the older sampled 91.67% run). The rerun reproduced **48/48** selectors identical
+      to the gate run — a third determinism confirmation, not just a refresh.
+
+**B2 result — 6 arms + 2 gate runs, 2026-09-05**
+
+| arm | `healed` | `wrong` | Δ healed | Δ wrong | regression |
+|---|---|---|---|---|---|
+| k=0 baseline | 95.83% | 2.08% | — | — | — |
+| k=1 loo | 95.83% | 2.08% | +0.00 | +0.00 | False |
+| k=3 loo | **100.00%** | 0.00% | +4.17 | −2.08 | False |
+| k=5 loo | 97.92% | 0.00% | +2.08 | −2.08 | False |
+| k=1 lobo | 97.92% | 0.00% | +2.08 | −2.08 | False |
+| k=3 lobo | 97.92% | 0.00% | +2.08 | −2.08 | False |
+| k=5 lobo | 97.92% | 0.00% | +2.08 | −2.08 | False |
+
+The whole LOBO effect is one field — `product__combo`/`price`, the promo-strip decoy. k=0 answers
+`css=div.c0929-price` (₹2,999, passes the price regex, DQ says `ok`); every k>0 lobo arm answers
+`css=.cb8af-value` and gets it right. The other baseline failure, `event__tag_swap`/`venue`, does
+not resolve at all and no value of k rescues it. n=48 means one field *is* 2.08pp, so this is
+reported as "the guard metric went to zero, consistently, at every k", not as a 2pp heal-rate win.
+
+LOO is degenerate and measured rather than assumed: 20/21 (95.2%) of its k=1 neighbours are another
+drift variant of the *same base page*. LOBO is 0/N by construction. LOO is the ceiling, LOBO the claim.
+
+### B2.5 — code-review fixes (`ponytail:ponytail-review`, 2026-09-05) — plan §B2.5
+
+Four HIGH findings. Every one was re-measured against the real corpus before being accepted;
+one did not survive that.
+
+- [x] **H2 — `retrieve()` weighted idf by the whole store, including partition-excluded entries.**
+      Confirmed and blocking: LOBO top-k moved on **5/21** cases at k=1 and **10/21** at k=5 between
+      `idf(store)` and `idf(pool)`. Under LOBO the held-out page was steering the ranking it had
+      been excluded from. One-word fix, but it invalidates the first sweep → re-run.
+- [x] **H4 — leakage claim DISCONFIRMED, false disclaimer fixed anyway.** Checked whether any
+      retrieved example carried the exact `healed_selector` the case under test needed:
+      **0/46 fields**, every arm, both partitions — per-case class renames mean a sibling's answer
+      is never this page's answer. What *was* real: the block said "(reference only — these are
+      different pages)", which is false under LOO by construction. Deleted rather than made
+      partition-aware.
+- [x] **H3 — `k` counts entries, not pages.** Confirmed: distinct source pages per prompt are
+      1.00 at k=1, 1.38–1.57 at k=3, 2.38–2.57 at k=5. Documented, not "fixed" — one entry per
+      healed field is what the store *is*, and deduping by page would be a different experiment.
+      This is also the explanation for the flat LOBO curve, so it is a finding.
+- [x] **H1 — `--save-memory` had no guard.** `save_store` overwrites, so `--k 5 --save-memory` or
+      `--case X --save-memory` silently replaced the seeded store and every later arm read it.
+      Now `parser.error`s on both.
+- [x] M1 `bench.py` comments reworded — the k=0 arm shares B1's *code path*, not its configuration
+- [x] M2 `BenchResult.n_examples` — records examples delivered, not the k requested
+- [x] L1 `save_store` docstring said "appendable"; it overwrites
+- [x] L2 `cosine` OOV weight was 1.0, the idf *floor*, for the most discriminative tokens
+- [x] L3 `_base_page` grouping is name-shaped — `ponytail:` comment names the ceiling
+- [x] L4 `_render_examples` `.get(..., "?")` so a stale jsonl line degrades instead of raising
+- [x] `compare_metrics` wired into the CLI as `--baseline PATH` rather than deleted — it is the
+      Decision-4 regression guard, and being callable only from a scratchpad is what made it look dead
+- [x] Rejected: deleting the `temperature`/`seed`/`num_ctx` constructor params (flagged YAGNI).
+      They are the knobs the entire B2.0 reproducibility gate rests on.
+- [x] New tests: idf-over-pool (verified RED against the old `idf(store)`), the two `--save-memory`
+      guards, `n_examples`. 235 passed, ruff clean.
+- [x] Re-sweep all 6 arms + a fresh k=0 gate; superseded the k-curve in README and plan §B2 RESULTS.
+      **Every headline rate reproduced exactly** — but the proposals under them did not: LOBO
+      arms kept only 42/48, 42/48 and 38/48 of their pre-fix selectors, tracking the 5/21, 6/21
+      and 10/21 ranking changes the idf fix caused. The re-seeded store was byte-identical, which
+      is what proves k=0 was untouched. So the first numbers were right for a partly-invalid
+      reason and are now right for a valid one.
+
+
+### C — UI visual design (deferred, raised 2026-09-05)
+The frontend works but looks bad. Functionality is not in question — this is purely visual.
+Deferred deliberately: B2 is the differentiating work, and restyling now would churn the same
+components again afterwards. Do it after B2, before showing the repo to anyone.
+
+**Decided 2026-09-05** (options presented with tradeoffs, user chose all three) — full plan in
+[`.claude/plans/ui-visual-design.md`](../plans/ui-visual-design.md):
+Tailwind v4 + shadcn/ui · "quiet developer tool" direction · anchor the popover properly.
+
+- [x] Decide the approach — mechanism, visual direction, and depth all locked
+- [x] C0 setup: Tailwind v4 + the Radix primitives shadcn wraps. Written by hand into
+      `components/ui/` rather than run through the CLI — same copied-in code, no config rewrite
+- [x] C2 tokens in `app/globals.css` `@theme`: warm canvas `#fbfaf9`, deep-green accent `#2f5d50`,
+      mono for selectors/values. Explicitly *not* zinc/0.5rem
+- [x] C3 shell + layout — `AppShell` (header + centred 1400px column), two-column picker with a
+      sticky fields rail, cards instead of `<hr>`s. Confirmed as the biggest single win
+- [x] C4 all nine components converted. **70 inline `style={{}}` objects → 2**, and both survivors
+      are runtime values that cannot be classes (progress-bar width, popover coordinates)
+- [x] C5 popover anchored. `render.py` now posts `getBoundingClientRect()`; `RenderFrame` adds the
+      iframe offset and pins a Radix `Popover.Anchor` there. Both render tests still pass
+- [x] C6 `HealReview` shows confirmed value → proposed value, with the anchor verdict as its own
+      column (`anchor match` / `anchor diverged` / `not in this cluster`)
+- [x] C7 four screenshots re-shot through the real stack — upload, pick, batch, heal — driven by
+      Playwright against a live backend + arq worker + Ollama. Not mocked screens
+
+**Fixed while shooting:**
+- Next's floating dev badge was in the corner of every shot → `devIndicators` off in `next.config.ts`
+- README captions were stale against the new shots: they claimed *both* fields failed at 40% and
+  that the heal was accepted on a `✓` anchor match. The real run has `title` surviving (0%) and
+  the anchor reading *not in this cluster*. Captions rewritten to what the images actually show.
 
 ---
 

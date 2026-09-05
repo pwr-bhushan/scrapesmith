@@ -20,12 +20,12 @@ Every HTML scraper rots: a redesign renames a class or wraps a price in one more
 | Click a value to pick it | Canary-test before the batch |
 |---|---|
 | ![Click to pick](docs/img/01-click-to-pick.png) | ![Canary](docs/img/02-canary.png) |
-| Inference guesses the type (PRICE, 85%); the selector is confirmed to resolve to exactly 1 element before you can confirm. | Both fields `ok`, both matching their captured anchor, on one file — before spending a batch run. |
+| Inference guesses the type (`price`, 90%) and the selector must resolve to exactly 1 element before Confirm enables. The popover is anchored to the element you clicked. | Both fields `ok`, both matching their captured anchor, on one file — before spending a batch run. |
 
 | Batch + per-field failure rates | Drift → cluster → heal, proved against the anchor |
 |---|---|
 | ![Batch results](docs/img/03-batch-results.png) | ![Heal review](docs/img/04-heal-review.png) |
-| Crawl 1 catches a redesign mid-rollout: 4 of 10 files post-redesign, both fields at exactly 40%. | Crawl 2, rollout complete — 100% failure. A local 7B model rewrites both selectors, and each is accepted only because it reproduces the value the operator confirmed (`✓ ₹1,49,900`). |
+| A redesign lands on 4 of 10 files. `price` fails on exactly 40% — over the 30% heal trigger — while `title`'s selector survives it, so only the field that actually broke is escalated. | The 4 failing files cluster by DOM skeleton; a local 7B model proposes `css=.cb8af-value` and the gate returns **healed**. The anchor check reads *not in this cluster* here — the page the anchor was captured on isn't among the redesigned files, so the proposal rests on DQ plus cross-file validation, and the UI says so rather than implying the anchor passed. |
 
 ## Quickstart
 
@@ -46,7 +46,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cd frontend && npm install && npm run dev           # UI at :3000
 ```
 
-**Config** via env: `SCRAPESMITH_DATABASE_URL`, `SCRAPESMITH_REDIS_URL`; opt-in heal model via `ANTHROPIC_API_KEY` / `SCRAPESMITH_CLOUD_MODEL`, or `OLLAMA_HOST`.
+**Config** lives in one gitignored file — copy `backend/.env.local.example` to `backend/.env.local`. It is loaded into the process environment, so the `SCRAPESMITH_*` settings, the bare `OLLAMA_HOST`, and the `ANTHROPIC_API_KEY` the Anthropic SDK reads for itself all come from the same place. A real environment variable always wins over the file. Set `SCRAPESMITH_ENV` to anything other than `local` and the app refuses to start on the built-in dev database credentials rather than failing later on the first query.
 
 ## How it works
 
@@ -80,7 +80,7 @@ flowchart LR
 ## Tests
 
 ```bash
-backend/.venv/bin/pytest              # 173 passed with Postgres up; 158 passed / 15 skipped without
+backend/.venv/bin/pytest              # 246 passed with Postgres up; 231 passed / 15 skipped without
 cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
@@ -90,24 +90,73 @@ Integration tests gate on service reachability, so the suite stays green on a ba
 **Heal benchmark** — measures selector repair over a corpus of deliberately broken pages:
 
 ```bash
-cd backend && python -m spike --fixtures fixtures/drift --provider ollama --out artifacts
+cd backend && .venv/bin/python -m spike --fixtures fixtures/drift --provider ollama --out artifacts
 ```
 
 `fixtures/generate.py` mutates four hand-written base pages with five labelled drift transforms
 (`class_rename`, `tag_swap`, `wrapper_insert`, `attr_strip`, `combo`) into 20 before/after cases,
 verifying per field that the old selector really did break and the value really did survive. Each
 proposal is scored through the product's own `post_check` gate, so the headline `healed_rate` counts
-only repairs that would actually ship.
+only repairs that would actually ship. Decoding is greedy (`temperature=0`, fixed seed): two runs of
+the same arm produce byte-identical selectors for all 48 fields, which is what makes the k-curve
+below attributable to `k` rather than to the sampler.
 
-| metric | value | |
+| metric | baseline (k=0) | |
 |---|---|---|
-| `healed_rate` | **91.67%** | correct **and** accepted by the gate — the headline |
-| `anchor_correct_rate` | 91.67% | the model produced the right value |
-| `resolve_but_wrong_rate` | 2.08% | guard: resolved a plausible *wrong* value; a rise here is a regression |
-| `no_proposal_rate` | 0.00% | |
+| `healed_rate` | **95.8%** (46/48) | correct **and** accepted by the gate — the headline |
+| `anchor_correct_rate` | 95.8% | the model produced the right value |
+| `resolve_but_wrong_rate` | 2.1% (1/48) | guard: resolved a plausible *wrong* value; a rise here is a regression |
+| `no_proposal_rate` | 0.0% | |
 
-Per drift type: `class_rename` 100% (n=12), `attr_strip` 100% (7), `combo` 91.7% (12),
-`tag_swap` 80% (10), `wrapper_insert` 80% (5).
+### Heal memory — does a past repair help the next one?
+
+On a failure the bench can retrieve the *k* structurally most similar past heals and paste them into
+the prompt as `old -> healed` pairs. Pages are signatured by root→leaf tag paths plus attribute
+*names* — classes are excluded, because `class_rename` rewrites every one of them — and ranked by
+idf-weighted cosine. The store holds only fields that healed **and** matched their anchor, and
+carries no anchor values and no HTML, so a retrieved neighbour cannot hand the model the answer.
+(Checked, not assumed: across every arm, 0 of 46 fields ever saw the exact selector they needed.)
+
+| k | LOO `healed` | LOO wrong | LOBO `healed` | LOBO wrong |
+|---|---|---|---|---|
+| 0 | 95.8% | 2.1% | 95.8% | 2.1% |
+| 1 | 95.8% | 2.1% | **97.9%** | **0.0%** |
+| 3 | **100.0%** | **0.0%** | **97.9%** | **0.0%** |
+| 5 | 97.9% | **0.0%** | **97.9%** | **0.0%** |
+
+Two partitions, because one of them flatters the result. **LOO** (leave-one-case-out) hides only the
+case under test — and 95% of what it retrieves at k=1 is another drift variant of *the same base
+page*, i.e. the same document under a different class rename. **LOBO** (leave-one-base-page-out)
+hides the whole page, so 0% of its neighbours are same-page by construction. LOO is the ceiling;
+LOBO is the claim.
+
+Reproduce it in two commands — seed the store from a k=0 run, then read from it:
+
+```bash
+cd backend
+.venv/bin/python -m spike --fixtures fixtures/drift --k 0 --save-memory --out artifacts
+.venv/bin/python -m spike --fixtures fixtures/drift --k 3 --partition lobo \
+    --baseline artifacts/phase0_report.json --out artifacts
+```
+
+**Read the corpus size, not just the delta.** At n=48 one field is 2.1pp, so the smallest effect this
+bench can resolve is a single field — and the LOBO result *is* a single field. What makes it worth
+reporting is which one. At k=0 the model answers the product price with `css=div.c0929-price`, the
+header promo strip: it passes the price regex, DQ returns `ok`, and only the anchor check stops it
+shipping. Given retrieved examples it switches to `css=.cb8af-value` and gets the right number — in
+every k>0 LOBO arm. The other baseline failure (`event__tag_swap` / `venue`, a proposal that does not
+resolve at all) is untouched at every k; few-shot examples do not rescue a selector that matches
+nothing.
+
+**Why the LOBO curve is flat.** The store keeps one entry per healed *field*, and every entry from a
+page shares that page's signature — so they tie and come back together. k=5 shows ~2.5 distinct
+pages, not 5. Past k=1 the prompt is mostly getting more fields of a page it has already seen, which
+is not new evidence.
+
+A code review of this feature found that retrieval was weighting idf by the whole store, including
+the entries the partition had just excluded — held-out pages steering the ranking they were held out
+of. Fixing it moved 6–10 of the 48 LOBO proposals but left every rate above unchanged; the full
+before/after is in [the plan](.claude/plans/presentable-and-heal-memory.md).
 
 ## Project layout
 
@@ -137,9 +186,10 @@ Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/
 
 What that does **not** mean:
 
-- **The measured heal rate is 91.7% on synthetic drift — a lower bound on difficulty, not production accuracy.** 44 of 48 fields across 21 cases, local `qwen2.5-coder:7b` ([full report](backend/artifacts/phase0_report.md)). The fixture pages carry decoys (a struck-through MRP, a promo strip, an "also viewed" rail) so a wrong-but-DQ-valid answer is actually available; an earlier decoy-free corpus scored 95.8% and is not comparable, because there the task collapsed into "find the one element containing this string." Still: four base pages, one model, hand-written markup. A real redesign is messier than a scripted transform.
-- **`resolve_but_wrong_rate` is 2.1% — and that is the number the anchor check exists for.** On `product__combo/price` the model proposed `div.c0929-price`, which resolves to `₹2,999` — the header promo strip. It passes the price regex, so DQ returned `ok`. The anchor check caught it and the proposal was gated to `suspect`, never auto-applied. Without that check it would have shipped a wrong price silently.
+- **The heal rate is 95.8% on *synthetic* drift, and "synthetic" is doing real work in that sentence.** 46 of 48 fields, local `qwen2.5-coder:7b`, four hand-written base pages × five scripted transforms ([latest report](backend/artifacts/phase0_report.md)). Decoding is greedy, so the number is reproducible — two runs give byte-identical selectors for all 48 fields. Reproducible is not general: this has never been measured against a real site redesign, and a corpus whose drift I wrote myself cannot tell me what a redesign I did not anticipate looks like. An earlier sampled configuration scored 91.7–97.9 across four runs of the *identical* config; pinning the decoder is what made any before/after comparison meaningful.
+- **The heal-memory gain is one field, and the writeup says so.** At n=48 one field is 2.1pp, which is exactly the smallest effect the bench can resolve. LOBO retrieval moves `healed_rate` 95.8% → 97.9% and `resolve_but_wrong_rate` 2.1% → 0.0% consistently at k ∈ {1,3,5}, and the field that moves is the wrong-price decoy — which is the point. It is not the same claim as “heal memory improves heal rate by 2pp”. What it does have going for it beyond consistency: the result survived a retrieval bug fix that changed 6–10 of the 48 LOBO proposals without moving any rate. Widening the corpus past four base pages is what would settle it.
+- **`resolve_but_wrong_rate` is the metric the anchor check exists for, and it is not zero.** At k=0 the model proposes `div.c0929-price` for the product price, resolving to `₹2,999` — the header promo strip. It passes the price regex, so DQ returns `ok`. The anchor check catches it and gates the proposal to `suspect`; without that check a wrong price ships silently. What is structural rather than luck is that such a value *exists to be picked at all*: the fixture pages carry decoys (a struck-through MRP, a promo strip, an “also viewed” rail) by construction. An earlier decoy-free corpus could not register this failure mode at all — and heal memory could not have been shown to fix it.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
-- **15 of the 152 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 137 rather than 152.
+- **15 of the 246 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 231 rather than 246.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
 - **Untrusted HTML is rendered in egress-blocked, script-stripped, CSP-locked contexts**, which is a real mitigation but not a substitute for a sandbox at the OS level. Prompt-injection hardening of the heal prompt is not implemented.

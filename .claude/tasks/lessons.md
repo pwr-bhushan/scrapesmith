@@ -164,3 +164,98 @@ rather than hard — there would be no correct selector left to find.
 
 **Rule:** when a benchmark is too easy, add ambiguity, not severity. Harsher mutation raises
 difficulty without creating a wrong answer to pick; a plausible competitor does both.
+
+### A sampled provider makes every A/B unattributable
+Four runs of the *identical* B1b config scored 91.67 / 91.67 / 97.92 / 97.92 — a 6.3pp spread from
+nothing but sampling. Heal memory was expected to move the number by 2–4pp. Any sweep run on top of
+that provider would have measured the sampler, not the retriever. Fixing it was three lines
+(`options: {temperature: 0, seed, num_ctx}`), and the exit gate was empirical, not theoretical: two
+consecutive k=0 runs had to produce byte-identical selectors for all 48 fields before any arm ran.
+
+**Rule:** before measuring a change, measure the harness's own noise floor by running the *unchanged*
+config twice. If the noise floor is wider than the effect you expect, pin it first — the experiment
+does not exist until it is reproducible. `temperature=0` alone is not enough: set the seed too, so
+ties between equal-probability tokens break the same way.
+
+### "Same experiment" is a property you have to lock, not assume
+The k=0 arm is only a valid baseline if it is the *same* experiment as the pre-memory baseline. Two
+things were needed. `tests/golden/prompt_k0.txt` was captured from HEAD before `prompt.py` was
+touched, so a stray newline in the few-shot block fails a test instead of quietly shifting every
+arm. And `run_bench` calls `provider.propose(cleaned, fields, failures)` positionally when there is
+nothing to retrieve, so the k=0 path matches B1 down to the call site — which also keeps the locked
+test fake in `tests/test_bench.py` (a 3-arg `propose`) working untouched.
+
+**Rule:** when adding an optional parameter to something a benchmark runs through, prove the
+zero-value path is byte-identical to the old path. A golden file is the cheapest proof, and it
+catches the whitespace-drift class of bug that no assertion about behaviour will.
+
+### Leave-one-out can measure the wrong thing entirely
+With LOO (exclude only the case under test), 95% of retrieved neighbours at k=1 were another drift
+variant of the *same base page* — the retriever was being handed the same document under a different
+class rename. That is retrieval working perfectly and telling you nothing about transfer. LOBO
+(exclude the whole base page) is 0% same-page by construction, so it is the number that answers
+"does a past heal on a different site help here?"
+
+**Rule:** for any retrieval eval, log the retrieved neighbours, not just the score. The degeneracy is
+invisible in the metric and obvious in the log. Report both partitions — LOO is the ceiling, LOBO is
+the claim.
+
+### A leak scan over serialised JSON scans numbers too
+The "no anchor value reaches the memory store" test failed on anchor `"7"` (a `read_minutes` field).
+Nothing had leaked: `"7"` was a substring of a signature *count* — `{"html>body>section": 7}`. The fix
+was to narrow the haystack to textual content (every string field plus every signature key) and add
+`assert all(isinstance(v, int) for v in entry["signature"].values())` as the premise that licenses
+excluding the counts.
+
+**Rule:** a substring leak scan needs a typed haystack. Dump the fields that can carry text; assert
+the rest are numeric rather than skipping them silently. Narrowing the haystack with a stated premise
+is precision; narrowing it because the test was red is how a real leak gets waved through.
+
+### Verify a review finding before you pay for it
+`ponytail:ponytail-review` returned four HIGH findings on the B2 diff. Re-measuring each against the
+real corpus before accepting any changed what happened to three of them:
+
+- **idf computed over the whole store, not the retrieval pool** — claimed to leak held-out
+  information into the ranking. Measured: LOBO top-k moved on 5/21 cases at k=1 and 10/21 at k=5.
+  Real, blocking, and worth a 2h re-sweep.
+- **"the few-shot block may hand the model the answer"** — measured: 0/46 fields, every arm and both
+  partitions, ever had the exact correct `healed_selector` in their examples. Disconfirmed. Acting on
+  it unverified would have meant rebuilding the store for a problem that did not exist. (A separate,
+  real part of the same finding survived: the block's "these are different pages" disclaimer is false
+  under LOO.)
+- **"`k` doesn't mean what you think"** — measured: k=5 shows 2.4–2.6 distinct pages, not 5. Real, but
+  a documentation fix, not a code fix; and it turned out to be the *explanation* for the flat LOBO
+  curve rather than a defect in it.
+
+**Rule:** a review finding is a hypothesis with a file:line attached. Measure it on the real data
+before deciding whether it is blocking, cosmetic, or wrong — the measurement is usually a ten-line
+script, and it is also what tells you the severity, which the finding itself cannot.
+
+### The eval partition has to hold for every statistic, not just the candidate list
+`retrieve()` filtered the pool correctly and then weighted it with `idf(store)`. Excluding a page
+from the candidates while letting it vote on the term weights is still leakage — under LOBO the
+held-out page's own entries push down the idf of precisely the tokens that identify it. The docstring
+already argued that exclusion must happen before ranking; idf *is* ranking, and the code did not
+follow its own argument.
+
+**Rule:** when you hold data out, enumerate every place it could still influence the result — corpus
+statistics, normalisation constants, vocabulary, tie-breaking — not just the obvious candidate set.
+Then write the test as "excluded entries must not change the ranking", and check it goes red against
+the old code. A test that passes both before and after guards nothing.
+
+### Green locally is not green in CI — run it under CI's flags
+`test_results_record_examples_actually_delivered` passed 246/246 locally and broke CI. It calls
+`run_bench`, which resolves selectors through Playwright, and CI runs `SKIP_PLAYWRIGHT=1` with no
+browsers installed. Every other Playwright-touching test in the repo carries
+`@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1")`; this one did not, because
+`test_bench.py` had never needed the gate before — nothing in that file had actually invoked
+`run_bench`, they only checked corpus structure and metric arithmetic.
+
+The tell was available before pushing: `SKIP_PLAYWRIGHT=1 pytest -q` locally shows the test
+*running* rather than *skipping*, which is the defect regardless of whether it then passes.
+
+**Rule:** when a new test exercises a code path no test in that file exercised before, check what
+that path pulls in — a browser, a database, a network call — and gate it the way the rest of the
+repo gates it. Before pushing, run the suite once under each environment flag CI sets
+(`SKIP_PLAYWRIGHT=1` here, and with the DB pointed at a closed port), not just the local
+everything-available configuration. Two extra runs, ten seconds each.

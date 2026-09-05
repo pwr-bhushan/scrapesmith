@@ -65,10 +65,17 @@ npm run dev                          # http://localhost:3000
 
 ## Configuration (environment)
 
+Copy `backend/.env.local.example` to `backend/.env.local` — one gitignored file for everything
+below. `app/config.py` loads it into the **process environment**, not just into the `Settings`
+model, because two consumers never touch that model: the `anthropic` SDK reads `ANTHROPIC_API_KEY`
+itself, and `OllamaProvider` reads `OLLAMA_HOST` directly. A real environment variable always wins
+over the file, so container-injected secrets need no change.
+
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `SCRAPESMITH_DATABASE_URL` | `postgresql+asyncpg://scrapesmith:scrapesmith@localhost:5432/scrapesmith` | async Postgres DSN |
 | `SCRAPESMITH_REDIS_URL` | `redis://localhost:6379` | arq queue + job state |
+| `SCRAPESMITH_ENV` | `local` | anything else makes the app refuse the default DB credentials |
 | `ANTHROPIC_API_KEY` | — | enables the cloud heal provider (Claude) |
 | `SCRAPESMITH_CLOUD_MODEL` | `claude-haiku-4-5` | cloud model id |
 | `OLLAMA_HOST` | `http://localhost:11434` | enables the local heal provider |
@@ -76,6 +83,12 @@ npm run dev                          # http://localhost:3000
 | `SKIP_PLAYWRIGHT` | — | set `1` to skip browser-dependent tests |
 
 Heal provider selection: `ANTHROPIC_API_KEY` → cloud, else `OLLAMA_HOST` → Ollama, else none (heal returns `model: "unavailable"`).
+
+**Startup gate.** With `SCRAPESMITH_ENV` set to anything but `local`, both the API and the
+arq worker refuse to start if `SCRAPESMITH_DATABASE_URL` is unset or still carries the shipped
+`scrapesmith:scrapesmith` password. Previously an unset URL started fine and failed later on the
+first query, with an asyncpg connection error that named nothing useful. The startup log line
+masks the password.
 
 ## Database migrations
 
@@ -89,7 +102,7 @@ Note: the `config_version ↔ upload_batch ↔ upload_file` circular FK uses `us
 ## Tests
 
 ```bash
-cd backend && .venv/bin/pytest        # 143 tests
+cd backend && .venv/bin/pytest        # 246 passed; 231 passed / 15 skipped without Postgres
 .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
