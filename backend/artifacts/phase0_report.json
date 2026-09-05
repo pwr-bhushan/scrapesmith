@@ -1,17 +1,23 @@
 {
+  "arm": {
+    "provider": "ollama",
+    "k": 0,
+    "partition": "loo",
+    "memory_entries": 0
+  },
   "metrics": {
-    "anchor_correct_rate": 0.9166666666666666,
-    "healed_rate": 0.9166666666666666,
+    "anchor_correct_rate": 0.9583333333333334,
+    "healed_rate": 0.9583333333333334,
     "resolve_but_wrong_rate": 0.020833333333333332,
     "no_proposal_rate": 0.0,
     "per_provider": {
       "ollama/qwen2.5-coder:7b": {
-        "anchor_correct_rate": 0.9166666666666666,
-        "healed_rate": 0.9166666666666666,
+        "anchor_correct_rate": 0.9583333333333334,
+        "healed_rate": 0.9583333333333334,
         "resolve_but_wrong_rate": 0.020833333333333332,
         "total": 48,
-        "anchor_correct": 44,
-        "healed": 44
+        "anchor_correct": 46,
+        "healed": 46
       }
     },
     "per_drift_type": {
@@ -40,12 +46,12 @@
         "healed": 11
       },
       "tag_swap": {
-        "anchor_correct_rate": 0.8,
-        "healed_rate": 0.8,
+        "anchor_correct_rate": 0.9,
+        "healed_rate": 0.9,
         "resolve_but_wrong_rate": 0.0,
         "total": 10,
-        "anchor_correct": 8,
-        "healed": 8
+        "anchor_correct": 9,
+        "healed": 9
       },
       "unlabelled": {
         "anchor_correct_rate": 1.0,
@@ -56,12 +62,12 @@
         "healed": 2
       },
       "wrapper_insert": {
-        "anchor_correct_rate": 0.8,
-        "healed_rate": 0.8,
+        "anchor_correct_rate": 1.0,
+        "healed_rate": 1.0,
         "resolve_but_wrong_rate": 0.0,
         "total": 5,
-        "anchor_correct": 4,
-        "healed": 4
+        "anchor_correct": 5,
+        "healed": 5
       }
     }
   },
@@ -78,9 +84,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 25670.12812500252,
+      "latency_ms": 10809.835541000211,
       "drift_type": "unlabelled",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -94,15 +101,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 25670.12812500252,
+      "latency_ms": 10809.835541000211,
       "drift_type": "unlabelled",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__attr_strip",
       "field_name": "headline",
-      "proposed_selector": "css=article.story h1.headline",
+      "proposed_selector": "css=article.story > h1.headline",
       "resolved_values": [
         "Regulator opens inquiry into port fee rises"
       ],
@@ -110,15 +118,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7854.321750000963,
+      "latency_ms": 6254.391749999741,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__class_rename",
       "field_name": "headline",
-      "proposed_selector": "css=h1.cef98-headline",
+      "proposed_selector": "css=article#story > h1.cef98-headline",
       "resolved_values": [
         "Regulator opens inquiry into port fee rises"
       ],
@@ -126,15 +135,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 10879.57170899972,
+      "latency_ms": 11721.375874999467,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__class_rename",
       "field_name": "author",
-      "proposed_selector": "css=.c473a-author[itemprop='author']",
+      "proposed_selector": "css=.ccb6a-block .c473a-author[itemprop='author']",
       "resolved_values": [
         "Priya Raghunathan"
       ],
@@ -142,15 +152,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 10879.57170899972,
+      "latency_ms": 11721.375874999467,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__class_rename",
       "field_name": "read_minutes",
-      "proposed_selector": "css=span.c640f-minutes",
+      "proposed_selector": "css=div.c7229-time > span.c640f-minutes",
       "resolved_values": [
         "7"
       ],
@@ -158,9 +169,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 10879.57170899972,
+      "latency_ms": 11721.375874999467,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -174,9 +186,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 9162.323874999856,
+      "latency_ms": 9775.523459000397,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -190,9 +203,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 9162.323874999856,
+      "latency_ms": 9775.523459000397,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -206,9 +220,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 9162.323874999856,
+      "latency_ms": 9775.523459000397,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -222,29 +237,33 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7161.7084159988735,
+      "latency_ms": 8542.883000000074,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__tag_swap",
       "field_name": "author",
-      "proposed_selector": "xpath=//span[@itemprop='author']",
-      "resolved_values": [],
+      "proposed_selector": "css=.byline-author[itemprop='author']",
+      "resolved_values": [
+        "Priya Raghunathan"
+      ],
       "anchor": "Priya Raghunathan",
-      "anchor_correct": false,
+      "anchor_correct": true,
       "resolve_but_wrong": false,
-      "dq_status": "empty",
-      "latency_ms": 7161.7084159988735,
+      "dq_status": "ok",
+      "latency_ms": 8542.883000000074,
       "drift_type": "tag_swap",
-      "status": "still_broken"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__tag_swap",
       "field_name": "read_minutes",
-      "proposed_selector": "xpath=//div[@class='minutes']",
+      "proposed_selector": "css=.read-time > div.minutes",
       "resolved_values": [
         "7"
       ],
@@ -252,15 +271,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7161.7084159988735,
+      "latency_ms": 8542.883000000074,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__wrapper_insert",
       "field_name": "headline",
-      "proposed_selector": "css=article#story .layout-slot > h1.headline",
+      "proposed_selector": "css=article#story > div.layout-slot > h1.headline",
       "resolved_values": [
         "Regulator opens inquiry into port fee rises"
       ],
@@ -268,15 +288,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7347.978833000525,
+      "latency_ms": 8228.902709000067,
       "drift_type": "wrapper_insert",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "article__wrapper_insert",
       "field_name": "read_minutes",
-      "proposed_selector": "css=div.read-time .layout-slot > span.minutes",
+      "proposed_selector": "css=div.read-time > div.layout-slot > span.minutes",
       "resolved_values": [
         "7"
       ],
@@ -284,15 +305,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7347.978833000525,
+      "latency_ms": 8228.902709000067,
       "drift_type": "wrapper_insert",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "event__attr_strip",
       "field_name": "event_name",
-      "proposed_selector": "css=.event-detail h1.event-name",
+      "proposed_selector": "css=.event-name",
       "resolved_values": [
         "Monsoon Jazz Sessions"
       ],
@@ -300,15 +322,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11167.712375001429,
+      "latency_ms": 6976.345957999911,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "event__attr_strip",
       "field_name": "ticket_price",
-      "proposed_selector": "css=.ticket-block .ticket-price",
+      "proposed_selector": "css=.ticket-price",
       "resolved_values": [
         "₹1,200"
       ],
@@ -316,13 +339,65 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11167.712375001429,
+      "latency_ms": 6976.345957999911,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "event__class_rename",
+      "field_name": "event_name",
+      "proposed_selector": "css=#event-detail h1.c6e59-name",
+      "resolved_values": [
+        "Monsoon Jazz Sessions"
+      ],
+      "anchor": "Monsoon Jazz Sessions",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 17762.16220799961,
+      "drift_type": "class_rename",
+      "status": "healed",
+      "n_examples": 0
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__class_rename",
+      "field_name": "venue",
+      "proposed_selector": "css=.c55ac-block > span.c8733-name",
+      "resolved_values": [
+        "Shivaji Mandir Auditorium"
+      ],
+      "anchor": "Shivaji Mandir Auditorium",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 17762.16220799961,
+      "drift_type": "class_rename",
+      "status": "healed",
+      "n_examples": 0
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__class_rename",
+      "field_name": "ticket_price",
+      "proposed_selector": "css=.c2940-block .c53f1-price",
+      "resolved_values": [
+        "₹1,200"
+      ],
+      "anchor": "₹1,200",
+      "anchor_correct": true,
+      "resolve_but_wrong": false,
+      "dq_status": "ok",
+      "latency_ms": 17762.16220799961,
+      "drift_type": "class_rename",
+      "status": "healed",
+      "n_examples": 0
+    },
+    {
+      "provider_name": "ollama/qwen2.5-coder:7b",
+      "case_id": "event__combo",
       "field_name": "event_name",
       "proposed_selector": "css=.c6e59-name",
       "resolved_values": [
@@ -332,13 +407,14 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11062.173708000046,
-      "drift_type": "class_rename",
-      "status": "healed"
+      "latency_ms": 26225.11858300004,
+      "drift_type": "combo",
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
-      "case_id": "event__class_rename",
+      "case_id": "event__combo",
       "field_name": "venue",
       "proposed_selector": "css=.c8733-name",
       "resolved_values": [
@@ -348,13 +424,14 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11062.173708000046,
-      "drift_type": "class_rename",
-      "status": "healed"
+      "latency_ms": 26225.11858300004,
+      "drift_type": "combo",
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
-      "case_id": "event__class_rename",
+      "case_id": "event__combo",
       "field_name": "ticket_price",
       "proposed_selector": "css=.c53f1-price",
       "resolved_values": [
@@ -364,57 +441,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11062.173708000046,
-      "drift_type": "class_rename",
-      "status": "healed"
-    },
-    {
-      "provider_name": "ollama/qwen2.5-coder:7b",
-      "case_id": "event__combo",
-      "field_name": "event_name",
-      "proposed_selector": "css=section.cf04a-hero h2.c6e59-name",
-      "resolved_values": [
-        "Monsoon Jazz Sessions"
-      ],
-      "anchor": "Monsoon Jazz Sessions",
-      "anchor_correct": true,
-      "resolve_but_wrong": false,
-      "dq_status": "ok",
-      "latency_ms": 11740.08670799958,
+      "latency_ms": 26225.11858300004,
       "drift_type": "combo",
-      "status": "healed"
-    },
-    {
-      "provider_name": "ollama/qwen2.5-coder:7b",
-      "case_id": "event__combo",
-      "field_name": "venue",
-      "proposed_selector": "css=section.c55ac-block div.c8733-name",
-      "resolved_values": [
-        "Shivaji Mandir Auditorium"
-      ],
-      "anchor": "Shivaji Mandir Auditorium",
-      "anchor_correct": true,
-      "resolve_but_wrong": false,
-      "dq_status": "ok",
-      "latency_ms": 11740.08670799958,
-      "drift_type": "combo",
-      "status": "healed"
-    },
-    {
-      "provider_name": "ollama/qwen2.5-coder:7b",
-      "case_id": "event__combo",
-      "field_name": "ticket_price",
-      "proposed_selector": "css=section.c2940-block section.ce928-slot div.c53f1-price",
-      "resolved_values": [
-        "₹1,200"
-      ],
-      "anchor": "₹1,200",
-      "anchor_correct": true,
-      "resolve_but_wrong": false,
-      "dq_status": "ok",
-      "latency_ms": 11740.08670799958,
-      "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -428,9 +458,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7796.228917002736,
+      "latency_ms": 20893.096042000252,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -442,23 +473,27 @@
       "anchor_correct": false,
       "resolve_but_wrong": false,
       "dq_status": "empty",
-      "latency_ms": 7796.228917002736,
+      "latency_ms": 20893.096042000252,
       "drift_type": "tag_swap",
-      "status": "still_broken"
+      "status": "still_broken",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "event__wrapper_insert",
       "field_name": "venue",
-      "proposed_selector": "css=div.venue-block > span.venue-name",
-      "resolved_values": [],
+      "proposed_selector": "css=div.venue-block > div.layout-slot > span.venue-name",
+      "resolved_values": [
+        "Shivaji Mandir Auditorium"
+      ],
       "anchor": "Shivaji Mandir Auditorium",
-      "anchor_correct": false,
+      "anchor_correct": true,
       "resolve_but_wrong": false,
-      "dq_status": "empty",
-      "latency_ms": 6762.472709000576,
+      "dq_status": "ok",
+      "latency_ms": 15366.846041999452,
       "drift_type": "wrapper_insert",
-      "status": "still_broken"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -472,15 +507,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 9274.460000000545,
+      "latency_ms": 15174.429708999924,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__attr_strip",
       "field_name": "salary",
-      "proposed_selector": "xpath=//div[@class='compensation']//span[@class='salary-range']",
+      "proposed_selector": "css=.salary-range",
       "resolved_values": [
         "₹38,00,000 – ₹52,00,000"
       ],
@@ -488,15 +524,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 9274.460000000545,
+      "latency_ms": 15174.429708999924,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__class_rename",
       "field_name": "job_title",
-      "proposed_selector": "css=h1.cc382-title",
+      "proposed_selector": "css=.cc382-title",
       "resolved_values": [
         "Senior Platform Engineer"
       ],
@@ -504,15 +541,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11961.991332998878,
+      "latency_ms": 19025.278834000346,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__class_rename",
       "field_name": "company",
-      "proposed_selector": "css=span.ce3ab-name",
+      "proposed_selector": "css=.ce3ab-name",
       "resolved_values": [
         "Northwind Systems"
       ],
@@ -520,15 +558,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11961.991332998878,
+      "latency_ms": 19025.278834000346,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__class_rename",
       "field_name": "salary",
-      "proposed_selector": "css=.c9d0f-range[data-salary-min]",
+      "proposed_selector": "css=.c9d0f-range",
       "resolved_values": [
         "₹38,00,000 – ₹52,00,000"
       ],
@@ -536,9 +575,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11961.991332998878,
+      "latency_ms": 19025.278834000346,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -552,9 +592,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 8405.994374999864,
+      "latency_ms": 19093.04012499979,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -568,9 +609,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 8405.994374999864,
+      "latency_ms": 19093.04012499979,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -584,15 +626,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 8405.994374999864,
+      "latency_ms": 19093.04012499979,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__tag_swap",
       "field_name": "job_title",
-      "proposed_selector": "css=section.posting h2.posting-title",
+      "proposed_selector": "css=h2.posting-title",
       "resolved_values": [
         "Senior Platform Engineer"
       ],
@@ -600,15 +643,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7541.548042001523,
+      "latency_ms": 15702.542458000607,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__tag_swap",
       "field_name": "company",
-      "proposed_selector": "css=section.company-line .company-name",
+      "proposed_selector": "css=div.company-name",
       "resolved_values": [
         "Northwind Systems"
       ],
@@ -616,15 +660,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 7541.548042001523,
+      "latency_ms": 15702.542458000607,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "job__wrapper_insert",
       "field_name": "company",
-      "proposed_selector": "css=div.company-line .company-name",
+      "proposed_selector": "css=.company-name",
       "resolved_values": [
         "Northwind Systems"
       ],
@@ -632,9 +677,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 6869.773833001091,
+      "latency_ms": 13714.568000000327,
       "drift_type": "wrapper_insert",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -648,9 +694,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 15264.807416999247,
+      "latency_ms": 17859.67645799974,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -664,15 +711,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 15264.807416999247,
+      "latency_ms": 17859.67645799974,
       "drift_type": "attr_strip",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "product__class_rename",
       "field_name": "title",
-      "proposed_selector": "css=.c7425-title",
+      "proposed_selector": "css=h1.c7425-title",
       "resolved_values": [
         "Apple MacBook Pro 14-inch"
       ],
@@ -680,15 +728,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 21063.839582999208,
+      "latency_ms": 24063.965416999963,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "product__class_rename",
       "field_name": "price",
-      "proposed_selector": "css=.cb8af-value",
+      "proposed_selector": "css=span.cb8af-value",
       "resolved_values": [
         "₹1,49,900"
       ],
@@ -696,15 +745,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 21063.839582999208,
+      "latency_ms": 24063.965416999963,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "product__class_rename",
       "field_name": "rating",
-      "proposed_selector": "css=.c48b1-value",
+      "proposed_selector": "css=span.c48b1-value",
       "resolved_values": [
         "4.6"
       ],
@@ -712,9 +762,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 21063.839582999208,
+      "latency_ms": 24063.965416999963,
       "drift_type": "class_rename",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -728,9 +779,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 16341.102916998352,
+      "latency_ms": 24436.46945799992,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -744,9 +796,10 @@
       "anchor_correct": false,
       "resolve_but_wrong": true,
       "dq_status": "ok",
-      "latency_ms": 16341.102916998352,
+      "latency_ms": 24436.46945799992,
       "drift_type": "combo",
-      "status": "suspect"
+      "status": "suspect",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -760,9 +813,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 16341.102916998352,
+      "latency_ms": 24436.46945799992,
       "drift_type": "combo",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -776,9 +830,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11891.623999999865,
+      "latency_ms": 20409.718957999758,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -792,9 +847,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11891.623999999865,
+      "latency_ms": 20409.718957999758,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
@@ -808,15 +864,16 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 11891.623999999865,
+      "latency_ms": 20409.718957999758,
       "drift_type": "tag_swap",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     },
     {
       "provider_name": "ollama/qwen2.5-coder:7b",
       "case_id": "product__wrapper_insert",
       "field_name": "rating",
-      "proposed_selector": "css=.rating-block > .layout-slot > span.rating-value",
+      "proposed_selector": "css=.rating-block > div.layout-slot > span.rating-value",
       "resolved_values": [
         "4.6"
       ],
@@ -824,9 +881,10 @@
       "anchor_correct": true,
       "resolve_but_wrong": false,
       "dq_status": "ok",
-      "latency_ms": 10231.253207999544,
+      "latency_ms": 17701.196750000236,
       "drift_type": "wrapper_insert",
-      "status": "healed"
+      "status": "healed",
+      "n_examples": 0
     }
   ]
 }

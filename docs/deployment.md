@@ -89,7 +89,7 @@ Note: the `config_version ↔ upload_batch ↔ upload_file` circular FK uses `us
 ## Tests
 
 ```bash
-cd backend && .venv/bin/pytest        # 143 tests
+cd backend && .venv/bin/pytest        # 235 passed; 220 passed / 15 skipped without Postgres
 .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```

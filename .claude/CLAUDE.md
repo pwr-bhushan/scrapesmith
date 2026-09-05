@@ -20,8 +20,6 @@ Step 10: SAVE
 2. Complete the step
 3. Present results to user
 4. Invoke `everything-claude-code:save-session` at end of session
-5. **Ask: "Ready to proceed to [next step]?"**
-6. Wait for user confirmation before moving on
 
 **Session file retention:** Keep at most 3 session files in `.claude/sessions/`. After saving a new session, delete the oldest files if count exceeds 3.
 
