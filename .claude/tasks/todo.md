@@ -296,11 +296,23 @@ The frontend works but looks bad. Functionality is not in question — this is p
 Deferred deliberately: B2 is the differentiating work, and restyling now would churn the same
 components again afterwards. Do it after B2, before showing the repo to anyone.
 
-- [ ] Decide the approach first (design system vs. hand-rolled Tailwind pass) — the screenshots in
-      `docs/img/` are in the README, so whatever lands here has to be re-shot
-- [ ] Components in scope: upload, picker + `PickPopover`, canary, batch results, `HealReview`,
-      `VersionPanel`, advanced mode
-- [ ] Re-shoot the four README screenshots afterwards
+**Decided 2026-09-05** (options presented with tradeoffs, user chose all three) — full plan in
+[`.claude/plans/ui-visual-design.md`](../plans/ui-visual-design.md):
+Tailwind v4 + shadcn/ui · "quiet developer tool" direction · anchor the popover properly.
+
+- [x] Decide the approach — mechanism, visual direction, and depth all locked
+- [ ] C0 setup: Tailwind v4, shadcn init, pull only the primitives actually used
+- [ ] C2 tokens: warm canvas + deep-green accent, mono for selectors/values. Explicitly *not*
+      shadcn's default zinc/0.5rem — that combination is the recognisable "shadcn app" look
+- [ ] C3 shell + layout — the biggest single win. Most of what looks broken is layout, not
+      components: no page shell, no max-width, `<hr>` section breaks, 85% dead space in the iframe
+- [ ] C4 convert all nine components (70 inline `style={{}}` objects → Tailwind + primitives)
+- [ ] C5 anchor the popover. **Not a CSS change**: `backend/app/render.py:104` posts no geometry,
+      so the injected script needs the clicked element's `getBoundingClientRect()`. Check
+      `test_render_snapshot.py` / `test_render_smoke.py` first — both assert on that script
+- [ ] C6 `HealReview` before→after **value** diff, not just selector diff — this is the screen that
+      demonstrates "you review values, not selectors"
+- [ ] C7 re-shoot the four README screenshots (lines 22–27, above the fold)
 
 ---
 
