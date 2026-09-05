@@ -1,7 +1,13 @@
 "use client";
 
+import { Download, Play } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, ErrorText } from "@/components/ui/empty";
+import { Table, Td, Th } from "@/components/ui/table";
 import {
   BatchResultsData,
   batchResults,
@@ -45,55 +51,87 @@ export default function BatchResults({ batchId }: { batchId: string }) {
     }
   }
 
+  const running = state === "running" || state === "queued";
   const pct = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div style={{ marginTop: 16, borderTop: "1px solid #cbd5e1", paddingTop: 12 }}>
-      <button onClick={run} disabled={state === "running" || state === "queued"}>
-        Run batch
-      </button>
-      {state && (
-        <div style={{ margin: "8px 0" }}>
-          <div style={{ fontSize: 13, color: "#475569" }}>
-            {state} — {progress?.done ?? 0}/{progress?.total ?? 0}
-          </div>
-          <div style={{ background: "#e2e8f0", borderRadius: 4, height: 8, width: 260 }}>
-            <div style={{ background: "#4f46e5", height: 8, borderRadius: 4, width: `${pct}%` }} />
-          </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch</CardTitle>
+        <div className="flex items-center gap-2">
+          {results && (
+            <>
+              <Button size="sm" variant="ghost" asChild>
+                <a href={exportCsvUrl(batchId)}>
+                  <Download /> CSV
+                </a>
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <a href={exportJsonUrl(batchId)}>
+                  <Download /> JSON
+                </a>
+              </Button>
+            </>
+          )}
+          <Button size="sm" onClick={run} disabled={running}>
+            <Play /> {running ? "Running…" : "Run batch"}
+          </Button>
         </div>
-      )}
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      {results && (
-        <div>
-          <h3>Per-field failure rate</h3>
-          <table style={{ fontSize: 13, borderCollapse: "collapse" }}>
+      </CardHeader>
+
+      <CardBody className={results ? "p-0" : undefined}>
+        {running || (state && !results) ? (
+          <div className="p-4">
+            <div className="mb-1.5 flex items-baseline justify-between text-xs text-muted">
+              <span>{state}</span>
+              <span className="tabular-nums">
+                {progress?.done ?? 0}/{progress?.total ?? 0}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-subtle">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-300"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {error && <ErrorText className="p-4">{error}</ErrorText>}
+
+        {!state && !error && (
+          <Empty>Run the batch to see per-field failure rates across every file.</Empty>
+        )}
+
+        {results && (
+          <Table>
             <thead>
-              <tr style={{ textAlign: "left", color: "#475569" }}>
-                <th>Field</th>
-                <th>Failures</th>
-                <th>In scope</th>
-                <th>Rate</th>
+              <tr>
+                <Th>Field</Th>
+                <Th className="text-right">Failures</Th>
+                <Th className="text-right">In scope</Th>
+                <Th className="text-right">Rate</Th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(results.field_rates).map(([name, r]) => (
-                <tr key={name} style={{ borderTop: "1px solid #eef2f7" }}>
-                  <td>{name}</td>
-                  <td>{r.failures}</td>
-                  <td>{r.in_scope}</td>
-                  <td style={{ color: r.failure_rate >= 0.3 ? "#b91c1c" : "#15803d" }}>
-                    {(r.failure_rate * 100).toFixed(0)}%
-                  </td>
+                <tr key={name} className="last:[&>td]:border-b-0">
+                  <Td className="font-medium">{name}</Td>
+                  <Td className="text-right tabular-nums text-muted">{r.failures}</Td>
+                  <Td className="text-right tabular-nums text-muted">{r.in_scope}</Td>
+                  <Td className="text-right">
+                    {/* 30% is the heal trigger threshold (§9) — the badge turns at the same
+                        number the backend acts on, so the UI never disagrees with the trigger. */}
+                    <Badge tone={r.failure_rate >= 0.3 ? "danger" : "ok"}>
+                      {(r.failure_rate * 100).toFixed(0)}%
+                    </Badge>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-          <p style={{ marginTop: 8 }}>
-            <a href={exportCsvUrl(batchId)}>Export CSV</a> ·{" "}
-            <a href={exportJsonUrl(batchId)}>Export JSON</a>
-          </p>
-        </div>
-      )}
-    </div>
+          </Table>
+        )}
+      </CardBody>
+    </Card>
   );
 }

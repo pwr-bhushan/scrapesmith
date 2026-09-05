@@ -301,18 +301,26 @@ components again afterwards. Do it after B2, before showing the repo to anyone.
 Tailwind v4 + shadcn/ui · "quiet developer tool" direction · anchor the popover properly.
 
 - [x] Decide the approach — mechanism, visual direction, and depth all locked
-- [ ] C0 setup: Tailwind v4, shadcn init, pull only the primitives actually used
-- [ ] C2 tokens: warm canvas + deep-green accent, mono for selectors/values. Explicitly *not*
-      shadcn's default zinc/0.5rem — that combination is the recognisable "shadcn app" look
-- [ ] C3 shell + layout — the biggest single win. Most of what looks broken is layout, not
-      components: no page shell, no max-width, `<hr>` section breaks, 85% dead space in the iframe
-- [ ] C4 convert all nine components (70 inline `style={{}}` objects → Tailwind + primitives)
-- [ ] C5 anchor the popover. **Not a CSS change**: `backend/app/render.py:104` posts no geometry,
-      so the injected script needs the clicked element's `getBoundingClientRect()`. Check
-      `test_render_snapshot.py` / `test_render_smoke.py` first — both assert on that script
-- [ ] C6 `HealReview` before→after **value** diff, not just selector diff — this is the screen that
-      demonstrates "you review values, not selectors"
-- [ ] C7 re-shoot the four README screenshots (lines 22–27, above the fold)
+- [x] C0 setup: Tailwind v4 + the Radix primitives shadcn wraps. Written by hand into
+      `components/ui/` rather than run through the CLI — same copied-in code, no config rewrite
+- [x] C2 tokens in `app/globals.css` `@theme`: warm canvas `#fbfaf9`, deep-green accent `#2f5d50`,
+      mono for selectors/values. Explicitly *not* zinc/0.5rem
+- [x] C3 shell + layout — `AppShell` (header + centred 1400px column), two-column picker with a
+      sticky fields rail, cards instead of `<hr>`s. Confirmed as the biggest single win
+- [x] C4 all nine components converted. **70 inline `style={{}}` objects → 2**, and both survivors
+      are runtime values that cannot be classes (progress-bar width, popover coordinates)
+- [x] C5 popover anchored. `render.py` now posts `getBoundingClientRect()`; `RenderFrame` adds the
+      iframe offset and pins a Radix `Popover.Anchor` there. Both render tests still pass
+- [x] C6 `HealReview` shows confirmed value → proposed value, with the anchor verdict as its own
+      column (`anchor match` / `anchor diverged` / `not in this cluster`)
+- [x] C7 four screenshots re-shot through the real stack — upload, pick, batch, heal — driven by
+      Playwright against a live backend + arq worker + Ollama. Not mocked screens
+
+**Fixed while shooting:**
+- Next's floating dev badge was in the corner of every shot → `devIndicators` off in `next.config.ts`
+- README captions were stale against the new shots: they claimed *both* fields failed at 40% and
+  that the heal was accepted on a `✓` anchor match. The real run has `title` surviving (0%) and
+  the anchor reading *not in this cluster*. Captions rewritten to what the images actually show.
 
 ---
 

@@ -1,9 +1,15 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useState } from "react";
 
-import { CanaryResult, ConfigFieldInput, canary, saveConfig } from "@/lib/api";
 import CanaryPanel from "@/components/CanaryPanel";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, ErrorText } from "@/components/ui/empty";
+import { Mono } from "@/components/ui/input";
+import { CanaryResult, ConfigFieldInput, canary, saveConfig } from "@/lib/api";
 
 // Right-hand field panel (§5.2): confirmed fields + Save config v1 + "Test on this file" (§5.5).
 export default function FieldPanel({
@@ -25,7 +31,7 @@ export default function FieldPanel({
     setError(null);
     try {
       const r = await saveConfig(batchId, fields);
-      setSaved(`Saved config v${r.version} (${r.field_count} fields)`);
+      setSaved(`Saved config v${r.version} · ${r.field_count} fields`);
     } catch (e) {
       setError(String(e));
     }
@@ -41,34 +47,61 @@ export default function FieldPanel({
   }
 
   return (
-    <div style={{ minWidth: 260 }}>
-      <h3>Fields</h3>
-      {fields.length === 0 && <p style={{ color: "#94a3b8" }}>Click an element to add a field.</p>}
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {fields.map((f, i) => (
-          <li key={i} style={{ marginBottom: 8 }}>
-            <strong>{f.name}</strong>{" "}
-            <em style={{ color: "#64748b" }}>
-              ({f.type || "?"} · {f.scope})
-            </em>
-            <br />
-            <code style={{ fontSize: 12 }}>{f.selector}</code>{" "}
-            <button onClick={() => onRemove(i)} style={{ fontSize: 11 }}>
-              ✕
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={save} disabled={fields.length === 0}>
+    <div className="grid content-start gap-3 lg:sticky lg:top-16">
+      <Card>
+        <CardHeader>
+          <CardTitle>Fields</CardTitle>
+          {fields.length > 0 && <Badge>{fields.length}</Badge>}
+        </CardHeader>
+        <CardBody className="p-0">
+          {fields.length === 0 ? (
+            <Empty className="p-4">Click an element in the preview to add a field.</Empty>
+          ) : (
+            <ul className="divide-y divide-border">
+              {fields.map((f, i) => (
+                <li key={i} className="group flex items-start gap-2 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-medium">{f.name}</span>
+                      <Badge>{f.type || "untyped"}</Badge>
+                      {f.scope === "list" && <Badge tone="accent">list</Badge>}
+                    </div>
+                    <Mono className="mt-0.5 block truncate" title={f.selector}>
+                      {f.selector}
+                    </Mono>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Remove ${f.name}`}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    onClick={() => onRemove(i)}
+                  >
+                    <X />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
+
+      <div className="flex gap-2">
+        <Button
+          className="flex-1"
+          variant="primary"
+          onClick={save}
+          disabled={fields.length === 0}
+        >
           Save config
-        </button>
-        <button onClick={testFile} disabled={fields.length === 0}>
+        </Button>
+        <Button className="flex-1" onClick={testFile} disabled={fields.length === 0}>
           Test on this file
-        </button>
+        </Button>
       </div>
-      {saved && <p style={{ color: "#15803d" }}>{saved}</p>}
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+
+      {saved && <p className="text-xs text-ok">{saved}</p>}
+      {error && <ErrorText className="text-xs">{error}</ErrorText>}
       {canaryResult && <CanaryPanel result={canaryResult} />}
     </div>
   );

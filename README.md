@@ -20,12 +20,12 @@ Every HTML scraper rots: a redesign renames a class or wraps a price in one more
 | Click a value to pick it | Canary-test before the batch |
 |---|---|
 | ![Click to pick](docs/img/01-click-to-pick.png) | ![Canary](docs/img/02-canary.png) |
-| Inference guesses the type (PRICE, 85%); the selector is confirmed to resolve to exactly 1 element before you can confirm. | Both fields `ok`, both matching their captured anchor, on one file — before spending a batch run. |
+| Inference guesses the type (`price`, 90%) and the selector must resolve to exactly 1 element before Confirm enables. The popover is anchored to the element you clicked. | Both fields `ok`, both matching their captured anchor, on one file — before spending a batch run. |
 
 | Batch + per-field failure rates | Drift → cluster → heal, proved against the anchor |
 |---|---|
 | ![Batch results](docs/img/03-batch-results.png) | ![Heal review](docs/img/04-heal-review.png) |
-| Crawl 1 catches a redesign mid-rollout: 4 of 10 files post-redesign, both fields at exactly 40%. | Crawl 2, rollout complete — 100% failure. A local 7B model rewrites both selectors, and each is accepted only because it reproduces the value the operator confirmed (`✓ ₹1,49,900`). |
+| A redesign lands on 4 of 10 files. `price` fails on exactly 40% — over the 30% heal trigger — while `title`'s selector survives it, so only the field that actually broke is escalated. | The 4 failing files cluster by DOM skeleton; a local 7B model proposes `css=.cb8af-value` and the gate returns **healed**. The anchor check reads *not in this cluster* here — the page the anchor was captured on isn't among the redesigned files, so the proposal rests on DQ plus cross-file validation, and the UI says so rather than implying the anchor passed. |
 
 ## Quickstart
 

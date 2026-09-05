@@ -1,7 +1,12 @@
 "use client";
 
+import { GitCompare, Pin } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty } from "@/components/ui/empty";
 import {
   CONFIG_VERSION_CREATED,
   VersionDiff,
@@ -49,38 +54,68 @@ export default function VersionPanel({ batchId }: { batchId: string }) {
     setMsg(`Pinned batch to v${r.pinned_version}`);
   }
 
+  const latest = versions.length ? versions[versions.length - 1].version : null;
+
   return (
-    <div style={{ marginTop: 16, borderTop: "1px solid #cbd5e1", paddingTop: 12 }}>
-      <h3>Versions</h3>
-      {versions.length === 0 && <p style={{ color: "#94a3b8" }}>No versions yet — save a config.</p>}
-      <ul style={{ listStyle: "none", padding: 0, fontSize: 13 }}>
-        {versions.map((v) => (
-          <li key={v.id} style={{ marginBottom: 4 }}>
-            v{v.version} · {v.created_by ?? "user"} · {v.field_count} fields{" "}
-            <button style={{ fontSize: 11 }} onClick={() => pin(v.version)}>
-              Pin
-            </button>
-          </li>
-        ))}
-      </ul>
-      {versions.length >= 2 && <button onClick={showDiff}>Diff last two</button>}
-      {msg && <p style={{ color: "#15803d" }}>{msg}</p>}
-      {diff && (
-        <div style={{ fontSize: 13, marginTop: 8 }}>
-          {diff.added.length > 0 && <div>+ added: {diff.added.join(", ")}</div>}
-          {diff.removed.length > 0 && <div>− removed: {diff.removed.join(", ")}</div>}
-          {Object.entries(diff.changed).map(([name, deltas]) => (
-            <div key={name}>
-              ~ {name}:{" "}
-              {Object.entries(deltas).map(([k, [a, b]]) => (
-                <span key={k}>
-                  {k} {String(a)} → {String(b)};{" "}
+    <Card>
+      <CardHeader>
+        <CardTitle>Versions</CardTitle>
+        {versions.length >= 2 && (
+          <Button size="sm" variant="ghost" onClick={showDiff}>
+            <GitCompare /> Diff last two
+          </Button>
+        )}
+      </CardHeader>
+
+      <CardBody className={versions.length ? "p-0" : undefined}>
+        {versions.length === 0 ? (
+          <Empty>No versions yet — save a config to create v1.</Empty>
+        ) : (
+          <ul className="divide-y divide-border">
+            {versions.map((v) => (
+              <li key={v.id} className="group flex items-center gap-2 px-4 py-2">
+                <span className="w-10 shrink-0 font-mono text-xs font-medium">v{v.version}</span>
+                <span className="flex-1 truncate text-xs text-muted">
+                  {v.created_by ?? "user"} · {v.field_count} fields
                 </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+                {v.version === latest && <Badge tone="accent">latest</Badge>}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                  onClick={() => pin(v.version)}
+                >
+                  <Pin /> Pin
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {(msg || diff) && (
+          <div className="border-t border-border px-4 py-3">
+            {msg && <p className="text-xs text-ok">{msg}</p>}
+            {diff && (
+              <dl className="mt-1 grid gap-1 font-mono text-[11px]">
+                {diff.added.length > 0 && (
+                  <div className="text-ok">+ {diff.added.join(", ")}</div>
+                )}
+                {diff.removed.length > 0 && (
+                  <div className="text-danger">− {diff.removed.join(", ")}</div>
+                )}
+                {Object.entries(diff.changed).map(([name, deltas]) => (
+                  <div key={name} className="text-muted">
+                    ~ {name}:{" "}
+                    {Object.entries(deltas)
+                      .map(([k, [a, b]]) => `${k} ${String(a)} → ${String(b)}`)
+                      .join("; ")}
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }

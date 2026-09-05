@@ -1,7 +1,12 @@
 "use client";
 
+import { ChevronDown, Terminal } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorText } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import { checkSelector, getConfig, saveConfig } from "@/lib/api";
 
 // Advanced mode (design §5.8 / §8): raw JSON config editor + custom selector checker + custom DQ.
@@ -52,38 +57,68 @@ export default function AdvancedPanel({ batchId, index }: { batchId: string; ind
   }
 
   return (
-    <div style={{ marginTop: 16, borderTop: "1px solid #cbd5e1", paddingTop: 12 }}>
-      <button onClick={() => setOpen((o) => !o)}>{open ? "Hide" : "Advanced ⌄"}</button>
-      {open && (
-        <div style={{ marginTop: 8 }}>
-          <h4>Custom selector check (file {index + 1})</h4>
-          <input
-            placeholder="css=... or xpath=..."
-            value={sel}
-            onChange={(e) => setSel(e.target.value)}
-            style={{ width: "70%", padding: 6 }}
-          />{" "}
-          <button onClick={runCheck}>Check</button>
-          {check && (
-            <p style={{ fontSize: 13, color: check.count ? "#15803d" : "#b91c1c" }}>
-              resolves to {check.count} — {check.values.slice(0, 3).join(", ")}
-            </p>
-          )}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5">
+          <Terminal className="size-3.5" /> Advanced
+        </CardTitle>
+        <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)}>
+          {open ? "Hide" : "Show"}
+          <ChevronDown className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+        </Button>
+      </CardHeader>
 
-          <h4 style={{ marginTop: 12 }}>Raw JSON config (fields[])</h4>
-          <button onClick={load}>Load current</button>
-          <textarea
-            value={json}
-            onChange={(e) => setJson(e.target.value)}
-            rows={12}
-            style={{ width: "100%", fontFamily: "monospace", fontSize: 12, marginTop: 6 }}
-            placeholder='[{"name":"price","selector":"css=[data-price]","scope":"single","dq":{"required":true,"parses_as":"number"}}]'
-          />
-          <button onClick={validateAndSave}>Validate &amp; Save</button>
-          {msg && <p style={{ color: "#15803d" }}>{msg}</p>}
-          {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-        </div>
+      {open && (
+        <CardBody className="grid gap-5">
+          <section className="grid gap-2">
+            <h3 className="text-xs font-medium text-muted">
+              Custom selector check — file {index + 1}
+            </h3>
+            <div className="flex gap-2">
+              <Input
+                className="font-mono text-xs"
+                placeholder="css=… or xpath=…"
+                value={sel}
+                onChange={(e) => setSel(e.target.value)}
+              />
+              <Button onClick={runCheck}>Check</Button>
+            </div>
+            {check && (
+              <p
+                className={`font-mono text-xs ${check.count ? "text-ok" : "text-danger"}`}
+              >
+                resolves to {check.count}
+                {check.count > 0 && ` — ${check.values.slice(0, 3).join(", ")}`}
+              </p>
+            )}
+          </section>
+
+          <section className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium text-muted">Raw JSON config — fields[]</h3>
+              <Button size="sm" variant="ghost" onClick={load}>
+                Load current
+              </Button>
+            </div>
+            <textarea
+              value={json}
+              onChange={(e) => setJson(e.target.value)}
+              rows={12}
+              spellCheck={false}
+              className="w-full rounded-[var(--radius-control)] border border-border-strong bg-surface
+                p-2.5 font-mono text-xs leading-relaxed text-ink placeholder:text-faint
+                focus-visible:border-accent"
+              placeholder='[{"name":"price","selector":"css=[data-price]","scope":"single","dq":{"required":true,"parses_as":"number"}}]'
+            />
+            <Button variant="primary" className="justify-self-start" onClick={validateAndSave}>
+              Validate &amp; save
+            </Button>
+          </section>
+
+          {msg && <p className="text-xs text-ok">{msg}</p>}
+          {error && <ErrorText className="text-xs">{error}</ErrorText>}
+        </CardBody>
       )}
-    </div>
+    </Card>
   );
 }
