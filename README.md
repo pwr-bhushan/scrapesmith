@@ -46,7 +46,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cd frontend && npm install && npm run dev           # UI at :3000
 ```
 
-**Config** via env: `SCRAPESMITH_DATABASE_URL`, `SCRAPESMITH_REDIS_URL`; opt-in heal model via `ANTHROPIC_API_KEY` / `SCRAPESMITH_CLOUD_MODEL`, or `OLLAMA_HOST`.
+**Config** lives in one gitignored file — copy `backend/.env.local.example` to `backend/.env.local`. It is loaded into the process environment, so the `SCRAPESMITH_*` settings, the bare `OLLAMA_HOST`, and the `ANTHROPIC_API_KEY` the Anthropic SDK reads for itself all come from the same place. A real environment variable always wins over the file. Set `SCRAPESMITH_ENV` to anything other than `local` and the app refuses to start on the built-in dev database credentials rather than failing later on the first query.
 
 ## How it works
 
@@ -80,7 +80,7 @@ flowchart LR
 ## Tests
 
 ```bash
-backend/.venv/bin/pytest              # 235 passed with Postgres up; 220 passed / 15 skipped without
+backend/.venv/bin/pytest              # 246 passed with Postgres up; 231 passed / 15 skipped without
 cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
@@ -190,6 +190,6 @@ What that does **not** mean:
 - **The heal-memory gain is one field, and the writeup says so.** At n=48 one field is 2.1pp, which is exactly the smallest effect the bench can resolve. LOBO retrieval moves `healed_rate` 95.8% → 97.9% and `resolve_but_wrong_rate` 2.1% → 0.0% consistently at k ∈ {1,3,5}, and the field that moves is the wrong-price decoy — which is the point. It is not the same claim as “heal memory improves heal rate by 2pp”. What it does have going for it beyond consistency: the result survived a retrieval bug fix that changed 6–10 of the 48 LOBO proposals without moving any rate. Widening the corpus past four base pages is what would settle it.
 - **`resolve_but_wrong_rate` is the metric the anchor check exists for, and it is not zero.** At k=0 the model proposes `div.c0929-price` for the product price, resolving to `₹2,999` — the header promo strip. It passes the price regex, so DQ returns `ok`. The anchor check catches it and gates the proposal to `suspect`; without that check a wrong price ships silently. What is structural rather than luck is that such a value *exists to be picked at all*: the fixture pages carry decoys (a struck-through MRP, a promo strip, an “also viewed” rail) by construction. An earlier decoy-free corpus could not register this failure mode at all — and heal memory could not have been shown to fix it.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
-- **15 of the 235 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 220 rather than 235.
+- **15 of the 246 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 231 rather than 246.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
 - **Untrusted HTML is rendered in egress-blocked, script-stripped, CSP-locked contexts**, which is a real mitigation but not a substitute for a sandbox at the OS level. Prompt-injection hardening of the heal prompt is not implemented.

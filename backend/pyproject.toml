@@ -21,6 +21,9 @@ dependencies = [
     "alembic>=1.13",
     "arq>=0.26",
     "pydantic-settings>=2.3",
+    # already present transitively via pydantic-settings; declared because config.py
+    # imports load_dotenv directly, and a transitive dep is not a contract.
+    "python-dotenv>=1.0",
     "python-multipart>=0.0.9",
 ]
 
