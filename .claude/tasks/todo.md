@@ -168,12 +168,42 @@ structurally pinned at 0 — there is no wrong-but-plausible value in the page t
 `product__combo/price` → proposed `div.c0929-price` → resolved `₹2,999` (the header promo strip),
 DQ `ok`, **anchor check caught it** → `suspect`. The §10 thesis, demonstrated on the bench.
 
-⚠️ Headroom is still only 8.33% (4/48). B2 must show a trend across the k-sweep, not a 1-field delta.
+⚠️ **CORRECTED 2026-09-05 (see B2.0).** The 95.83 → 91.67 drop is *within run-to-run noise* — four
+runs of the identical hard-corpus config gave 91.67 / 91.67 / 97.92 / 97.92. The decoys' effect on
+`healed_rate` is **not** established. What holds structurally is that `resolve_but_wrong_rate`
+became *reachable*, which follows from the corpus containing wrong-but-valid values by
+construction. Both rate values above are ±3pp.
 
-### B2 — Heal memory (not started)
-- [ ] `paths()` signature + TF-IDF cosine retriever over `artifacts/heal_memory.jsonl`
-- [ ] Inject top-k into `build_prompt`; `--k` on the CLI
-- [ ] Sweep k ∈ {0,1,3,5}; `compare_metrics` regression guard; before/after table in the README
+### B2 — Heal memory — plan written 2026-09-05, decisions 5–7 resolved (plan §B2.0–B2.4)
+
+**B2.0 — BLOCKING: make the bench reproducible**
+- [ ] `OllamaProvider` sends `options: {temperature: 0, seed, num_ctx}`
+- [ ] Verify `num_ctx` is large enough that the cleaned HTML is not already being truncated —
+      if it is, every k>0 result is an artifact of truncation, not of retrieval
+- [ ] **Exit gate:** two consecutive `k=0` runs produce byte-identical proposals for all 48 fields
+- [ ] Re-run the baseline deterministically; correct README + this file with the pinned number
+
+**B2.1 — signature + retriever** (`spike/memory.py`, stdlib only)
+- [ ] `paths()` — tag path + attribute **names**, classes excluded (they are what `class_rename`
+      destroys, so class tokens do not survive the drift the retriever must see through)
+- [ ] `idf()` / `cosine()` / `retrieve(sig, store, k, exclude)`
+
+**B2.2 — memory store** (`artifacts/heal_memory.jsonl`)
+- [ ] Entry = case/host/page_type/drift_type + field, old→healed selector, signature
+- [ ] **No anchor values, no raw HTML** — the prompt does not give the model the anchor, so a
+      same-site neighbour carrying one hands over the answer. Enforced by test.
+- [ ] Populate only from `anchor_correct AND status == "healed"` on a k=0 run — never ground truth
+- [ ] Both partitions: LOO (same case excluded) and LOBO (same base page excluded)
+
+**B2.3 — prompt injection**
+- [ ] `build_prompt(..., examples=())`; `propose(..., examples=())` on both providers
+- [ ] **k=0 prompt must stay byte-identical** to today's, or the sweep's baseline isn't B1's
+- [ ] Log retrieved neighbours per case into the report
+
+**B2.4 — sweep + compare**
+- [ ] `--k` and `--partition {loo,lobo}`; 2 × 4 = 8 runs ≈ 80min
+- [ ] `compare_metrics(baseline, candidate)` → `regression: True` if `resolve_but_wrong_rate` rises
+- [ ] README k-curve for both partitions + the ±3pp power limit stated (n=48 resolves ~2pp)
 
 ### C — UI visual design (deferred, raised 2026-09-05)
 The frontend works but looks bad. Functionality is not in question — this is purely visual.

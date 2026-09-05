@@ -481,6 +481,142 @@ table is a migration away if heal memory ever earns its place in the product.
 
 ---
 
+## Phase B2 — implementation plan (written 2026-09-05, decisions 5–7 resolved)
+
+### B2.0 — **BLOCKING: the bench is not reproducible** (~45min)
+
+Discovered while planning B2, by running the *identical* config four times:
+
+| run | `healed_rate` | `resolve_but_wrong_rate` |
+|---|---|---|
+| 1 (committed baseline) | 91.67% | 2.08% |
+| 2 | 91.67% | 2.08% |
+| 3 | 97.92% | 0.00% |
+| 4 | 97.92% | 2.08% |
+| **mean / spread** | **94.79% / 6.25pp** | 0–2.08% |
+
+Runs 1 and 2 agree on the aggregate **by coincidence**. Field by field: only **14 of 48**
+proposals were the identical selector, and **6 of 48 fields flipped correctness** (3 gained, 3 lost).
+Each run had exactly 4 failures — a mostly *different* 4.
+
+Per-field noise ≈ 12.5%; spread across runs ≈ 6.25pp; headroom = 8.33%. **The noise is larger than
+the signal B2 exists to move.** No single-run k-sweep can attribute a difference to k.
+
+Cause: `OllamaProvider.propose` sends no `options`, so Ollama samples at the model default (~0.8).
+
+**Correction this forces to B1b's writeup:** the 95.83% → 91.67% change attributed to decoys is
+*within noise* (2 fields; sampling alone moves 6). What remains structurally true is that
+`resolve_but_wrong_rate` became **reachable** — that follows from the corpus containing
+wrong-but-DQ-valid values by construction, not from a lucky run. The 2.08% figure itself is one
+field and equally noisy. README and todo must be corrected to say this.
+
+**DECISION 5 RESOLVED — pin `temperature=0` + fixed `seed`.**
+
+- `OllamaProvider.__init__` gains `temperature: float = 0.0`, `seed: int = 0`; `propose` sends
+  `options: {"temperature": …, "seed": …, "num_ctx": …}`.
+- **Also set `num_ctx` explicitly and verify it.** Ollama applies its own default context window
+  regardless of what the model's GGUF metadata declares. If that default is smaller than the
+  prompt, the cleaned HTML is already being silently truncated at k=0 — and every few-shot example
+  added at k>0 makes it worse, which would turn "retrieval hurts" into an artifact of truncation
+  rather than a finding. Measure the prompt's token count against `num_ctx` before trusting any
+  sweep result.
+- Accepted trade: this changes the product's heal behaviour too, since the provider is shared.
+  Greedy decoding is defensible for selector repair — reproducible proposals are a feature when a
+  human reviews them. Recorded here as a deliberate product change, not a bench-only hack.
+- Accepted limit: measures one point of the model's behaviour, not its distribution. The sampled
+  spread above is what gets reported alongside, so the writeup is honest about it.
+
+**Exit:** two consecutive bench runs at `k=0` produce byte-identical proposals for all 48 fields.
+Until that holds, nothing downstream is measurable.
+
+### B2.1 — Signature + retriever (~1h)
+
+New `spike/memory.py`, pure stdlib.
+
+```
+paths(html)             -> Counter[str]        # root→leaf structural tokens
+idf(store)              -> dict[str, float]    # IDF over the memory store (it is the corpus)
+cosine(a, b, idf)       -> float
+retrieve(sig, store, k, exclude) -> list[MemoryEntry]
+```
+
+**Token design — classes are excluded on purpose.** The obvious token is
+`html>body>div.price-block>span.price-value`, but `class_rename` rewrites *every* class in the
+page, so class tokens are exactly the part that does not survive drift — two variants of the same
+page would share almost no tokens. Tokens are therefore the **tag path plus attribute *names***
+(never values): `html>body>main>div>span`, `@data-price-amount`, `@itemprop`. Those survive the
+drift the retriever has to see through. Worth stating in the writeup, because "we used TF-IDF over
+DOM paths" hides the one choice that decides whether it works.
+
+### B2.2 — Memory store (~45min)
+
+`artifacts/heal_memory.jsonl`, one JSON object per successfully healed field:
+
+```json
+{"case_id": "...", "host": "...", "page_type": "...", "drift_type": "...",
+ "field_name": "price", "field_type": "currency",
+ "old_selector": "css=...", "healed_selector": "css=...", "signature": {"tok": n, ...}}
+```
+
+**Hard rule: no anchor values, no raw HTML in an entry.** Verified while planning — `build_prompt`
+gives the model the field name, type, old selector and the cleaned HTML, but **not** the anchor
+value; the model must infer which element holds the price. A same-site neighbour carrying its
+anchor value would therefore hand over the answer the model is supposed to derive. Enforced by a
+test asserting no entry contains any corpus anchor string.
+
+**Population:** from a deterministic `k=0` run; only fields with `anchor_correct` **and**
+`status == "healed"`. Memory contains only repairs the system actually achieved — never ground
+truth from `fixtures/base/*.json`, which would be an oracle.
+
+**DECISION 6 RESOLVED — report both partitions.**
+
+| partition | `exclude` | question it answers |
+|---|---|---|
+| **LOO** (leave-one-case-out) | same `case_id` | *"a site you have healed before drifts again"* — production's actual situation |
+| **LOBO** (leave-one-base-page-out) | same base-page prefix (`product__*`) | *"does structural similarity transfer across different sites?"* — the strict claim |
+
+LOO alone invites the leakage objection (the neighbour shares fields and anchors with the target,
+under a different transform). LOBO alone is the setting where a flat result is uninformative rather
+than negative, since the other 3 base pages are entirely different page types. Both, reported
+separately, is the only version that can be argued either way.
+
+### B2.3 — Prompt injection + `--k` (~45min)
+
+- `build_prompt(..., examples=())` renders a reference block *only when examples exist*:
+  `- price (currency): css=div.price-block [data-price-amount] → css=#product-detail [data-price-amount]`
+  with an instruction that these are from other pages and will not work verbatim.
+- `propose(cleaned, fields, failures, examples=())` on both providers; retrieval happens in
+  `run_bench`, which is the only place that knows the case.
+- **`k=0` must produce a byte-identical prompt to today's**, or the sweep's own baseline is not the
+  B1 baseline. Locked by a test comparing the k=0 prompt to the current output.
+- Log which neighbours were retrieved per case into the report, so a reader can see *why* a case
+  moved rather than only that it did.
+
+### B2.4 — Sweep + compare (~1.5h)
+
+- `--k` and `--partition {loo,lobo}` on the CLI.
+- 2 partitions × k ∈ {0,1,3,5} = 8 runs ≈ 80min at ~10min/run.
+- `compare_metrics(baseline, candidate)` — the guard from Decision 4. Returns per-metric deltas and
+  `regression: True` when `resolve_but_wrong_rate` rises, **even if `healed_rate` also rises**.
+- README gets the k-curve for both partitions plus the sampled-variance caveat.
+
+**DECISION 7 RESOLVED — keep 4 base pages, state the power limit.**
+
+At n=48 the smallest resolvable effect is ~1 field ≈ 2pp. A flat curve is a publishable finding
+("retrieval did not help on this corpus") *provided* the writeup states that limit rather than
+implying the mechanism was disproven. Expanding to 8 base pages was costed at ~2h authoring plus
+doubled runtime on every one of the 8 runs; deferred, and revisited only if the curve is
+ambiguous rather than flat.
+
+**Risks**
+- `num_ctx` truncation silently confounds k>0 — measured in B2.0 before any sweep runs.
+- Retrieval on LOO may degenerate to "any variant of the same page", which is trivially correct;
+  the retrieved-neighbour log is what makes that visible instead of hidden.
+- Determinism may not be perfect even at `temperature=0` (batching/GPU nondeterminism). The B2.0
+  exit check is empirical for exactly this reason.
+
+---
+
 ## Budget reality
 
 | Phase | Est. |

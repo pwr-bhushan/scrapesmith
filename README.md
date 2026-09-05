@@ -101,13 +101,13 @@ only repairs that would actually ship.
 
 | metric | value | |
 |---|---|---|
-| `healed_rate` | **91.67%** | correct **and** accepted by the gate — the headline |
-| `anchor_correct_rate` | 91.67% | the model produced the right value |
-| `resolve_but_wrong_rate` | 2.08% | guard: resolved a plausible *wrong* value; a rise here is a regression |
+| `healed_rate` | **94.8%** (91.7–97.9 over 4 runs) | correct **and** accepted by the gate — the headline |
+| `anchor_correct_rate` | tracks `healed_rate` | the model produced the right value |
+| `resolve_but_wrong_rate` | 0–2.1% | guard: resolved a plausible *wrong* value; a rise here is a regression |
 | `no_proposal_rate` | 0.00% | |
 
-Per drift type: `class_rename` 100% (n=12), `attr_strip` 100% (7), `combo` 91.7% (12),
-`tag_swap` 80% (10), `wrapper_insert` 80% (5).
+Read the range, not the point: the provider samples at the model's default temperature, so
+repeat runs of the same config differ by up to 6.3pp.
 
 ## Project layout
 
@@ -137,8 +137,8 @@ Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/
 
 What that does **not** mean:
 
-- **The measured heal rate is 91.7% on synthetic drift — a lower bound on difficulty, not production accuracy.** 44 of 48 fields across 21 cases, local `qwen2.5-coder:7b` ([full report](backend/artifacts/phase0_report.md)). The fixture pages carry decoys (a struck-through MRP, a promo strip, an "also viewed" rail) so a wrong-but-DQ-valid answer is actually available; an earlier decoy-free corpus scored 95.8% and is not comparable, because there the task collapsed into "find the one element containing this string." Still: four base pages, one model, hand-written markup. A real redesign is messier than a scripted transform.
-- **`resolve_but_wrong_rate` is 2.1% — and that is the number the anchor check exists for.** On `product__combo/price` the model proposed `div.c0929-price`, which resolves to `₹2,999` — the header promo strip. It passes the price regex, so DQ returned `ok`. The anchor check caught it and the proposal was gated to `suspect`, never auto-applied. Without that check it would have shipped a wrong price silently.
+- **The heal rate is 94.8% ± 3 on synthetic drift, and the ± is the important part.** Four runs of the *identical* config scored 91.7 / 91.7 / 97.9 / 97.9 (mean 94.8%, spread 6.3pp) across 48 fields, local `qwen2.5-coder:7b` ([latest report](backend/artifacts/phase0_report.md)). The provider samples at the model's default temperature, so proposals vary run to run: between two runs only 14 of 48 selectors were identical and 6 fields flipped correctness. Any single number here — including one quoted from one run — is worth about ±3pp. Pinning `temperature=0` is the next piece of work, and is a prerequisite for measuring anything against this baseline.
+- **`resolve_but_wrong_rate` sits at 0–2.1%, and that metric is the point of the anchor check.** In one run the model proposed `div.c0929-price` for the product price, resolving to `₹2,999` — the header promo strip. It passes the price regex, so DQ returned `ok`. The anchor check caught it and gated the proposal to `suspect`, never auto-applied; without that check a wrong price ships silently. What is structural rather than luck is that such a value *exists to be picked at all*: the fixture pages carry decoys (a struck-through MRP, a promo strip, an "also viewed" rail) by construction. An earlier decoy-free corpus could not register this failure mode at all.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
 - **15 of the 152 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 137 rather than 152.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
