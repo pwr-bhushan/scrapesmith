@@ -12,6 +12,8 @@ All tests must FAIL (RED) until Step 3 implements compute_metrics().
 """
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from spike.bench import BenchCase, BenchResult, compute_metrics, load_case
@@ -484,6 +486,7 @@ class TestRunBenchMemoryWiring:
         assert params["k"].default == 0
         assert not params["memory"].default, "memory must default to empty (k=0 baseline)"
 
+    @pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
     def test_results_record_examples_actually_delivered(self):
         """The CLI records the *requested* k. Retrieval returns fewer when the partition
         leaves a small pool, so an artifact labelled k=5 is not self-evidently a 5-example

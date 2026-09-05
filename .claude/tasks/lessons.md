@@ -242,3 +242,20 @@ follow its own argument.
 statistics, normalisation constants, vocabulary, tie-breaking — not just the obvious candidate set.
 Then write the test as "excluded entries must not change the ranking", and check it goes red against
 the old code. A test that passes both before and after guards nothing.
+
+### Green locally is not green in CI — run it under CI's flags
+`test_results_record_examples_actually_delivered` passed 246/246 locally and broke CI. It calls
+`run_bench`, which resolves selectors through Playwright, and CI runs `SKIP_PLAYWRIGHT=1` with no
+browsers installed. Every other Playwright-touching test in the repo carries
+`@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1")`; this one did not, because
+`test_bench.py` had never needed the gate before — nothing in that file had actually invoked
+`run_bench`, they only checked corpus structure and metric arithmetic.
+
+The tell was available before pushing: `SKIP_PLAYWRIGHT=1 pytest -q` locally shows the test
+*running* rather than *skipping*, which is the defect regardless of whether it then passes.
+
+**Rule:** when a new test exercises a code path no test in that file exercised before, check what
+that path pulls in — a browser, a database, a network call — and gate it the way the rest of the
+repo gates it. Before pushing, run the suite once under each environment flag CI sets
+(`SKIP_PLAYWRIGHT=1` here, and with the DB pointed at a closed port), not just the local
+everything-available configuration. Two extra runs, ten seconds each.
