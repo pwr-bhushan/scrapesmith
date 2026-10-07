@@ -275,3 +275,9 @@ the next attempt, which would score reliability as model skill.
 because the message stays on the server. A refusal the agent can't read is useless, so tools
 raise `ToolError` on purpose. Unit tests that call the tool function directly can't see this;
 only a test that goes through `mcp.call_tool(...)`, or a real stdio client, can.
+
+**The DB env var is `SCRAPESMITH_DATABASE_URL`, not `DATABASE_URL` (2026-10-07)**: settings use
+`env_prefix="SCRAPESMITH_"`, so `DATABASE_URL=...closed port...` is silently ignored and the
+"no Postgres" run still hits Postgres. Caught when the "closed port" run reported 280/280 passed.
+Use `SCRAPESMITH_DATABASE_URL=postgresql+asyncpg://x:x@localhost:5999/x`. A no-DB run that skips
+nothing is the sign the override didn't take.

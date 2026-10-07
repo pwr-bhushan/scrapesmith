@@ -91,7 +91,7 @@ flowchart LR
 ## Tests
 
 ```bash
-backend/.venv/bin/pytest              # 280 passed with Postgres + Playwright; 252 passed / 28 skipped with SKIP_PLAYWRIGHT=1
+backend/.venv/bin/pytest              # 280 passed with Postgres; 263 passed / 17 skipped without
 cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
@@ -189,7 +189,8 @@ before/after is in [the plan](.claude/plans/presentable-and-heal-memory.md).
 ```
 backend/
   app/        FastAPI service — routes/, render, parser, dq, inference,
-              selector ladder, heal, batch jobs, export, versioning
+              selector ladder, heal + heal_graph (LangGraph loop), batch jobs,
+              export, versioning, mcp_server (stdio MCP server for agents)
   spike/      heal providers, prompt, drift mutator, and the eval bench (`python -m spike`)
   fixtures/   base pages + the generated drift corpus the bench measures against
   alembic/    migrations
@@ -208,7 +209,7 @@ frontend/     Next.js app — upload, click-to-select picker, canary,
 
 ## Status & limitations
 
-Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode). Nothing is stubbed — there are no `TODO`/`NotImplementedError` placeholders in `app/` or the frontend. Backend is lint-clean; the frontend type-checks and builds.
+Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode), plus the LangGraph heal loop with retry and the MCP server. Nothing is stubbed — there are no `TODO`/`NotImplementedError` placeholders in `app/` or the frontend. Backend is lint-clean; the frontend type-checks and builds.
 
 What that does **not** mean:
 
@@ -216,6 +217,8 @@ What that does **not** mean:
 - **The heal-memory gain is one field, and the writeup says so.** At n=48 one field is 2.1pp, which is exactly the smallest effect the bench can resolve. LOBO retrieval moves `healed_rate` 95.8% → 97.9% and `resolve_but_wrong_rate` 2.1% → 0.0% consistently at k ∈ {1,3,5}, and the field that moves is the wrong-price decoy — which is the point. It is not the same claim as “heal memory improves heal rate by 2pp”. What it does have going for it beyond consistency: the result survived a retrieval bug fix that changed 6–10 of the 48 LOBO proposals without moving any rate. Widening the corpus past four base pages is what would settle it.
 - **`resolve_but_wrong_rate` is the metric the anchor check exists for, and it is not zero.** At k=0 the model proposes `div.c0929-price` for the product price, resolving to `₹2,999` — the header promo strip. It passes the price regex, so DQ returns `ok`. The anchor check catches it and gates the proposal to `suspect`; without that check a wrong price ships silently. What is structural rather than luck is that such a value *exists to be picked at all*: the fixture pages carry decoys (a struck-through MRP, a promo strip, an “also viewed” rail) by construction. An earlier decoy-free corpus could not register this failure mode at all — and heal memory could not have been shown to fix it.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
-- **15 of the 246 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 231 rather than 246.
+- **17 of the 280 tests need Postgres**: batch jobs, canary, config routes, versioning persistence, migrations, the heal route, `GET /batches`. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 263 rather than 280.
+- **Retry hasn't earned a number yet.** The heal graph's retry-with-feedback measured +0.0pp on this corpus with the local 7B model: one miss repeats the same selector, the other moves to a different decoy. It stays in because it's free when attempt 1 heals. Whether a stronger model uses the feedback is untested.
+- **The MCP server trusts whoever runs it.** It's a local stdio process with the same access as the HTTP API, which has no authentication. Agents can apply only `healed` repairs, but they can upload, parse and read everything.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
 - **Untrusted HTML is rendered in egress-blocked, script-stripped, CSP-locked contexts**, which is a real mitigation but not a substitute for a sandbox at the OS level. Prompt-injection hardening of the heal prompt is not implemented.
