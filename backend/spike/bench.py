@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import pathlib
-import time
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -63,6 +62,9 @@ class BenchResult:
     # returns fewer when the partition leaves a small pool, and one page contributes several
     # entries, so an arm labelled k=5 is not self-evidently a 5-example run without this.
     n_examples: int = 0
+    # Heal-graph attempts spent on this case (1 = no retry). Per case, not per field: a field
+    # healed on attempt 1 still shares the case's count.
+    attempts: int = 1
 
 
 def load_case(case_dir: str) -> BenchCase:
@@ -109,6 +111,7 @@ def run_bench(
     k: int = 0,
     memory: Sequence[Mapping[str, Any]] = (),
     partition: str = "loo",
+    max_attempts: int = 1,
 ) -> List[BenchResult]:
     """Run all providers against all cases.
 
@@ -123,6 +126,8 @@ def run_bench(
         memory: Heal-memory entries from ``spike.memory.load_store``.
         partition: ``"loo"`` or ``"lobo"`` — which entries a case may not retrieve.
             Only consulted when ``k > 0``.
+        max_attempts: Heal-graph attempts per case. 1 (the default) is one propose and one
+            gate run — the pre-graph path, with an attempt-1 prompt that is byte-identical.
 
     Returns:
         Flat list of ``BenchResult`` objects (one per provider×case×field).
@@ -155,21 +160,15 @@ def run_bench(
             cleaned = clean_html(case.after_html)
             examples = _retrieve_examples(case, k, memory, partition)
 
-            t0 = time.monotonic()
-            # Called positionally when there is nothing to retrieve, so the k=0 arm matches the
-            # pre-memory code path down to the call site — and so a provider written against the
-            # old 3-argument signature still works.
-            if examples:
-                proposals = provider.propose(cleaned, field_specs, failures, examples=examples)
-            else:
-                proposals = provider.propose(cleaned, field_specs, failures)
-            latency_ms = (time.monotonic() - t0) * 1000
-
-            statuses = _gate_statuses(case, proposals)
+            healed = _heal_case(case, provider, cleaned, field_specs, failures, examples,
+                                max_attempts)
+            verdicts = healed["proposals"]
+            # model time only, summed over attempts — the gate's Playwright time is not latency
+            latency_ms = healed["model_ms"]
 
             for fc in case.fields:
-                proposal = proposals.get(fc.name)
-                proposed_selector = proposal.selector if proposal else None
+                verdict = verdicts.get(fc.name)
+                proposed_selector = verdict["selector"] if verdict else None
 
                 resolved_values: List[str] = []
                 if proposed_selector:
@@ -212,8 +211,9 @@ def run_bench(
                     dq_status=dq_status,
                     latency_ms=latency_ms,
                     drift_type=case.drift_type,
-                    status=statuses.get(fc.name, "still_broken"),
+                    status=verdict["status"] if verdict else "still_broken",
                     n_examples=len(examples),
+                    attempts=healed["attempts"],
                 ))
 
     return results
@@ -257,28 +257,21 @@ def compare_metrics(
     }
 
 
-def _gate_statuses(case: BenchCase, proposals: Dict[str, Any]) -> Dict[str, str]:
-    """Run the product's own §10 gate over the proposals and return {field: status}.
+def _heal_case(case, provider, cleaned, field_specs, failures, examples, max_attempts) -> dict:
+    """Run the product's heal graph (``app.heal_graph.heal_cluster``) on one case.
 
-    The bench scores what the *product* would ship, not what the model emitted — so the verdict
-    has to come from `app.heal.post_check` rather than a reimplementation of it that could drift
-    away from the real thing.
+    The bench scores what the *product* would ship, so both the retry loop and the verdict come
+    from the shipped code rather than a reimplementation that could drift from it.
 
-    Each case is a single page, so `cluster_paths` is empty (no cross-file validation to do) and
-    `paths_by_filename` maps the one filename the anchors name. Anchors carry
-    ``file="after.html"`` deliberately: without it `_anchor_check` returns None and the run would
-    silently score the weaker DQ-only signal — the exact bug B0b fixed.
+    Each case is a single page, so the "cluster" is just after.html: `cluster_paths` is empty
+    (no cross-file validation to do) and `paths_by_filename` maps the one filename the anchors
+    name. Anchors carry ``file="after.html"`` deliberately: without it `_anchor_check` returns
+    None and the run would silently score the weaker DQ-only signal — the exact bug B0b fixed.
     """
     import asyncio
     import tempfile
 
-    from app.heal import post_check
-
-    selectors = {
-        name: p.selector for name, p in proposals.items() if getattr(p, "selector", None)
-    }
-    if not selectors:
-        return {}
+    from app.heal_graph import heal_cluster
 
     fields_by_name = {
         fc.name: {
@@ -291,17 +284,19 @@ def _gate_statuses(case: BenchCase, proposals: Dict[str, Any]) -> Dict[str, str]
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "after.html"
         path.write_text(case.after_html, encoding="utf-8")
-        checked = asyncio.run(
-            post_check(
-                selectors,
-                str(path),
-                [],
-                fields_by_name,
-                render_js=False,
+        return asyncio.run(
+            heal_cluster(
+                provider,
+                cleaned_html=cleaned,
+                specs=field_specs,
+                failures=failures,
+                rep_path=str(path),
+                fields_by_name=fields_by_name,
                 paths_by_filename={"after.html": str(path)},
+                examples=examples,
+                max_attempts=max_attempts,
             )
         )
-    return {name: r["status"] for name, r in checked.items()}
 
 
 def compute_metrics(results: List[BenchResult]) -> Dict[str, Any]:

@@ -324,7 +324,24 @@ Tailwind v4 + shadcn/ui · "quiet developer tool" direction · anchor the popove
 
 ---
 
+## Section D — Heal loop as LangGraph + MCP server ✅ (2026-10-07) — plan: [`heal-graph-and-mcp.md`](../plans/heal-graph-and-mcp.md)
+
+- [x] PLAN — forks decided (1A feedback-only retry, 2A stdio MCP, 3B accept healed only, 4A+B list + upload)
+- [x] TESTS — graph, prompt feedback, post_check reason, MCP tools, GET /batches
+- [x] IMPLEMENT — deps, Failure.feedback, post_check reason, app/heal_graph.py, route, bench --max-attempts, GET /batches, app/mcp_server.py
+- [x] VERIFY — suite (+ SKIP_PLAYWRIGHT=1, + closed DB port), ruff, tsc, bench attempts 1 vs 3, stdio MCP E2E
+- [x] REVIEW → FIX → RE-VERIFY — 1 HIGH, 2 MEDIUM, 3 LOW fixed (see plan §Review fixes)
+- [x] COMPLETE — README, docs/api.md, docs/architecture.md, lessons
+
 ## Review
+
+**Section D — Heal graph + MCP COMPLETE (2026-10-07)**
+- Backend: 280 passed (252 passed / 28 skipped under SKIP_PLAYWRIGHT=1), ruff clean.
+- New: `app/heal_graph.py` (DRIFT_GRAPH + HEAL_GRAPH), `app/mcp_server.py` (7 tools), `GET /batches`, `--max-attempts`.
+- Bench: attempt 1 through the graph reproduces the baseline's 48 selectors exactly. attempts=3 gives the same
+  95.83% / 2.08%, a measured null result: the 7B model repeats itself or hops to another decoy.
+- Stdio MCP E2E: upload → parse (100% fail) → propose (healed) → accept → re-parse 0%.
+
 
 **Phase 8 — Advanced mode COMPLETE (2026-06-18)** — ALL PHASES DONE
 - Backend: 143 tests pass, ruff clean. `POST /selector/check` (raw selector → count+values).

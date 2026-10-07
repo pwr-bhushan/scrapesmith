@@ -29,6 +29,9 @@ Selectors are engine-prefixed (`css=…` / `xpath=…`) and passed straight to P
 → `{ "batch_id", "domain_id", "file_count", "files": [{ "index", "filename" }] }`
 `400` on cap breach (size / file-count / uncompressed total — zip-bomb guard) or invalid gzip.
 
+### `GET /batches?limit=20` — newest batches first
+`limit` 1–200. → `{ "batches": [{ "batch_id", "host", "page_type", "status", "file_count", "created_at" }] }`
+
 ### `GET /batch/{batch_id}`
 → `{ "batch_id", "domain_id", "status", "file_count", "files": [{ "index", "filename", "dom_skeleton_hash" }] }`
 
@@ -129,21 +132,40 @@ A **ConfigField**:
 
 ## Heal
 
-### `POST /heal/propose` — detect drift, cluster, propose, post-check
-`{ "batch_id": "…" }`
+### `POST /heal/propose` — run the heal graph: detect drift, cluster, propose ⇄ post-check
+`{ "batch_id": "…", "max_attempts": 3 }` — `max_attempts` 1–5 (default 3) per cluster. A retry re-prompts the
+fields not yet `healed` with the selector they tried and the gate's `reason`; never the anchor value.
 → if no field is over threshold: `{ "triggered": false, "field_rates": {…} }`
 → otherwise:
 ```json
-{ "triggered": true, "failing": ["price"], "field_rates": {…},
+{ "triggered": true, "failing": ["price"], "field_rates": {…}, "config_version": 3,
   "clusters": [ { "hash": "…", "size": 3, "representative": "f12.html", "model": "cloud/claude-haiku-4-5",
-    "proposals": { "price": { "selector": "css=[data-price]", "status": "healed",
+    "attempts": 2,
+    "proposals": { "price": { "selector": "css=[data-price]", "status": "healed", "reason": "ok",
                               "value": "₹1,49,900", "anchor_ok": true, "anchor": "₹1,49,900" } } } ] }
 ```
-`status ∈ {healed, suspect, still_broken}`. With no model configured, `model: "unavailable"` and empty `proposals` (the drift is still reported). Never auto-applies.
+`status ∈ {healed, suspect, still_broken}` — the best verdict across attempts. With no model configured, `model: "unavailable"` and empty `proposals` (the drift is still reported). Never auto-applies.
 
 ### `POST /heal/accept` — write accepted selectors as a new version
-`{ "batch_id": "…", "accepted": { "price": "css=[data-price]" } }`
+`{ "batch_id": "…", "accepted": { "price": "css=[data-price]" }, "expected_version": 3 }`
 → `{ "config_version_id", "version", "healed": ["price"] }` (`created_by = llm-heal`).
+`expected_version` is optional: the `config_version` the proposal was made against. `409` if the config has moved
+on since (another accept or a pin), so stale selectors can't overwrite it.
+
+---
+
+## MCP server
+
+`backend/app/mcp_server.py` — a stdio MCP server over this API, for Claude Code and other agents. See the README for setup.
+
+| tool | wraps |
+|---|---|
+| `list_batches(limit)` | `GET /batches` |
+| `upload_html(path, host, page_type, render_js)` | `POST /upload` — a file, or a directory zipped client-side (`.html`/`.htm` only) |
+| `start_parse(batch_id)` · `get_job(job_id)` | `POST /parse/batch` · `GET /jobs/{id}` |
+| `get_results(batch_id, max_rows=20)` | `GET /batch/{id}/results`, rows capped at 200 |
+| `propose_heal(batch_id, max_attempts=3)` | `POST /heal/propose` |
+| `accept_heal(batch_id, fields)` | `POST /heal/accept` — field *names* only; refused unless the field is `healed` with one selector across every cluster in this session's last proposal |
 
 ---
 

@@ -11,8 +11,9 @@ Every HTML scraper rots: a redesign renames a class or wraps a price in one more
 - **List detection** — click one item, capture all N similar ones.
 - **Data-quality engine** — per field: `ok / empty / regex_fail / type_fail / range_fail / out_of_scope`, with a canary "test on one file" before the batch.
 - **Async batch + export** — run across a whole upload as a background job with live progress and per-field failure rates; export CSV (one row per list item) or nested JSON.
-- **Self-healing on drift** — failing files cluster by DOM skeleton, an LLM proposes new selectors per cluster, and every proposal is code-checked (resolves → passes DQ → not too positional → **matches the anchor** → holds on more files). You review *values, not selectors*; suspect proposals are flagged and never auto-applied.
+- **Self-healing on drift** — failing files cluster by DOM skeleton, an LLM proposes new selectors per cluster, and every proposal is code-checked (resolves → passes DQ → not too positional → **matches the anchor** → holds on more files). You review *values, not selectors*; suspect proposals are flagged and never auto-applied. The loop is a LangGraph state graph: a rejected proposal is retried with the gate's reason (never the expected value).
 - **Versioned configs** — every change is a new version with a diff view and per-batch pinning; concurrent heals serialize under a Postgres advisory lock.
+- **Agent access over MCP** — Claude Code and other agents can upload, parse, read results and propose heals; they can apply only gate-`healed` repairs.
 - **Pluggable LLM** — local Ollama by default, cloud Claude opt-in. The ✨ field classifier is always opt-in — interactive clicking never blocks on a model.
 
 ## See it work
@@ -46,6 +47,15 @@ python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cd frontend && npm install && npm run dev           # UI at :3000
 ```
 
+**Agents (MCP).** With the API running, register the stdio MCP server so Claude Code (or any MCP client) can drive extraction jobs:
+
+```bash
+claude mcp add scrapesmith -- "$PWD/backend/.venv/bin/python" -m app.mcp_server   # run from the repo root
+# SCRAPESMITH_API_URL defaults to http://localhost:8000
+```
+
+Tools: `list_batches`, `upload_html` (a file or a directory of `.html`), `start_parse`, `get_job`, `get_results`, `propose_heal`, `accept_heal`. An agent can only accept a field the gate marked `healed`. Suspect proposals stay a human call in the UI.
+
 **Config** lives in one gitignored file — copy `backend/.env.local.example` to `backend/.env.local`. It is loaded into the process environment, so the `SCRAPESMITH_*` settings, the bare `OLLAMA_HOST`, and the `ANTHROPIC_API_KEY` the Anthropic SDK reads for itself all come from the same place. A real environment variable always wins over the file. Set `SCRAPESMITH_ENV` to anything other than `local` and the app refuses to start on the built-in dev database credentials rather than failing later on the first query.
 
 ## How it works
@@ -76,11 +86,12 @@ flowchart LR
 | Rendering / extraction | Playwright (headless Chromium) — renders the preview **and** runs extraction |
 | Frontend | Next.js 15 (App Router, React + TypeScript) |
 | Heal LLM | Pluggable provider — Ollama (default) / cloud Claude (opt-in), anchor-checked in code |
+| Orchestration / agents | LangGraph (heal loop state graph), MCP Python SDK (stdio server for agents) |
 
 ## Tests
 
 ```bash
-backend/.venv/bin/pytest              # 246 passed with Postgres up; 231 passed / 15 skipped without
+backend/.venv/bin/pytest              # 280 passed with Postgres; 263 passed / 17 skipped without
 cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
@@ -107,6 +118,21 @@ below attributable to `k` rather than to the sampler.
 | `anchor_correct_rate` | 95.8% | the model produced the right value |
 | `resolve_but_wrong_rate` | 2.1% (1/48) | guard: resolved a plausible *wrong* value; a rise here is a regression |
 | `no_proposal_rate` | 0.0% | |
+
+### Retry with feedback — does telling the model why it failed help?
+
+The heal loop is a LangGraph state graph (`app/heal_graph.py`): propose → gate → retry the fields not yet healed, with each rejected selector and the gate's reason added to the prompt. The anchor value is never included. The bench runs the same graph, so `--max-attempts` measures the loop that ships:
+
+```bash
+cd backend && .venv/bin/python -m spike --fixtures fixtures/drift --provider ollama --max-attempts 3
+```
+
+| arm | `healed_rate` | `resolve_but_wrong_rate` | model calls |
+|---|---|---|---|
+| `--max-attempts 1` (baseline, through the graph) | 95.8% (46/48) | 2.1% | 21 |
+| `--max-attempts 3` | 95.8% (46/48) | 2.1% | 25 |
+
+**Null result, qwen2.5-coder:7b, greedy.** The baseline leaves only 2 fields to recover, so the ceiling is +4.2pp and one field is 2.1pp. The attempt-1 arm reproduces the original baseline's 48 selectors exactly, so this is the same experiment. Neither miss responded to feedback in a way that helped. On `event__tag_swap.venue` the model repeated the identical selector after being told it "matched no element". On `product__combo.price` it moved off the `₹2,999` promo decoy, but to another decoy (the product name), which fails DQ. The earlier `suspect` verdict was kept, so the guard held. The retry is kept because the API and agents use it and it costs nothing when the first attempt heals, but on this model and corpus it hasn't earned a number. Untested levers: a stronger model, or sampling on retries (rejected for now because it undoes the greedy noise floor).
 
 ### Heal memory — does a past repair help the next one?
 
@@ -163,7 +189,8 @@ before/after is in [the plan](.claude/plans/presentable-and-heal-memory.md).
 ```
 backend/
   app/        FastAPI service — routes/, render, parser, dq, inference,
-              selector ladder, heal, batch jobs, export, versioning
+              selector ladder, heal + heal_graph (LangGraph loop), batch jobs,
+              export, versioning, mcp_server (stdio MCP server for agents)
   spike/      heal providers, prompt, drift mutator, and the eval bench (`python -m spike`)
   fixtures/   base pages + the generated drift corpus the bench measures against
   alembic/    migrations
@@ -182,7 +209,7 @@ frontend/     Next.js app — upload, click-to-select picker, canary,
 
 ## Status & limitations
 
-Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode). Nothing is stubbed — there are no `TODO`/`NotImplementedError` placeholders in `app/` or the frontend. Backend is lint-clean; the frontend type-checks and builds.
+Active development on `dev`. Phases 0.5 → 8 are implemented (skeleton, upload/render, click-select, inference, parse/DQ/anchors, async batch/export, heal, versioning, advanced mode), plus the LangGraph heal loop with retry and the MCP server. Nothing is stubbed — there are no `TODO`/`NotImplementedError` placeholders in `app/` or the frontend. Backend is lint-clean; the frontend type-checks and builds.
 
 What that does **not** mean:
 
@@ -190,6 +217,8 @@ What that does **not** mean:
 - **The heal-memory gain is one field, and the writeup says so.** At n=48 one field is 2.1pp, which is exactly the smallest effect the bench can resolve. LOBO retrieval moves `healed_rate` 95.8% → 97.9% and `resolve_but_wrong_rate` 2.1% → 0.0% consistently at k ∈ {1,3,5}, and the field that moves is the wrong-price decoy — which is the point. It is not the same claim as “heal memory improves heal rate by 2pp”. What it does have going for it beyond consistency: the result survived a retrieval bug fix that changed 6–10 of the 48 LOBO proposals without moving any rate. Widening the corpus past four base pages is what would settle it.
 - **`resolve_but_wrong_rate` is the metric the anchor check exists for, and it is not zero.** At k=0 the model proposes `div.c0929-price` for the product price, resolving to `₹2,999` — the header promo strip. It passes the price regex, so DQ returns `ok`. The anchor check catches it and gates the proposal to `suspect`; without that check a wrong price ships silently. What is structural rather than luck is that such a value *exists to be picked at all*: the fixture pages carry decoys (a struck-through MRP, a promo strip, an “also viewed” rail) by construction. An earlier decoy-free corpus could not register this failure mode at all — and heal memory could not have been shown to fix it.
 - **The anchor check is only evaluated on the page its value came from.** An anchor asserts "on this page, this field reads ₹1,49,900", so it means nothing on a different product's page. When the anchor's page isn't in the failing cluster the review shows `not in this cluster` and the proposal rests on DQ plus cross-file validation alone — weaker evidence, and the UI says so rather than implying the anchor passed.
-- **15 of the 246 tests need Postgres** — batch jobs, canary, config routes, versioning persistence, migrations, the heal route. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 231 rather than 246.
+- **17 of the 280 tests need Postgres**: batch jobs, canary, config routes, versioning persistence, migrations, the heal route, `GET /batches`. They run in CI against service containers and skip locally so the suite stays green on a bare machine, which means a bare `pytest` reports 263 rather than 280.
+- **Retry hasn't earned a number yet.** The heal graph's retry-with-feedback measured +0.0pp on this corpus with the local 7B model: one miss repeats the same selector, the other moves to a different decoy. It stays in because it's free when attempt 1 heals. Whether a stronger model uses the feedback is untested.
+- **The MCP server trusts whoever runs it.** It's a local stdio process with the same access as the HTTP API, which has no authentication. Agents can apply only `healed` repairs, but they can upload, parse and read everything.
 - **Single-tenant, no auth.** There is no user model, no authorization on any route, and no rate limiting. It is a local tool, not a deployed service.
 - **Untrusted HTML is rendered in egress-blocked, script-stripped, CSP-locked contexts**, which is a real mitigation but not a substitute for a sandbox at the OS level. Prompt-injection hardening of the heal prompt is not implemented.

@@ -19,7 +19,7 @@ from __future__ import annotations
 import abc
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,9 @@ class Failure:
     field_name: str
     dq_status: str  # DQStatus value
     extracted_value: Optional[str] = None
+    # Previous attempts at this field, as "<selector> — <why the gate rejected it>". Empty on
+    # attempt 1, so the heal graph's first prompt is the pre-graph prompt byte for byte.
+    feedback: Tuple[str, ...] = ()
 
 
 @dataclass
