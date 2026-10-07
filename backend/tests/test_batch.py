@@ -76,3 +76,21 @@ async def test_run_batch_then_results_and_export():
         # json export
         tree = (await c.get(f"/batch/{batch_id}/export.json")).json()
         assert tree["p.html"]["price"] == "1099"
+
+
+async def test_list_batches_newest_first_with_domain():
+    """Section D: GET /batches is how an MCP agent finds something to parse."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        first = await _setup(c)
+        second = await _setup(c)
+        body = (await c.get("/batches", params={"limit": 2})).json()
+    ids = [b["batch_id"] for b in body["batches"]]
+    assert ids == [second, first]
+    assert body["batches"][0]["file_count"] == 1
+    assert body["batches"][0]["page_type"] == "product"
+    assert body["batches"][0]["host"].endswith(".com")
+
+
+async def test_list_batches_rejects_an_unbounded_limit():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        assert (await c.get("/batches", params={"limit": 10_000})).status_code == 422

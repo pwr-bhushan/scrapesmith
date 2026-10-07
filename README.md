@@ -11,8 +11,9 @@ Every HTML scraper rots: a redesign renames a class or wraps a price in one more
 - **List detection** — click one item, capture all N similar ones.
 - **Data-quality engine** — per field: `ok / empty / regex_fail / type_fail / range_fail / out_of_scope`, with a canary "test on one file" before the batch.
 - **Async batch + export** — run across a whole upload as a background job with live progress and per-field failure rates; export CSV (one row per list item) or nested JSON.
-- **Self-healing on drift** — failing files cluster by DOM skeleton, an LLM proposes new selectors per cluster, and every proposal is code-checked (resolves → passes DQ → not too positional → **matches the anchor** → holds on more files). You review *values, not selectors*; suspect proposals are flagged and never auto-applied.
+- **Self-healing on drift** — failing files cluster by DOM skeleton, an LLM proposes new selectors per cluster, and every proposal is code-checked (resolves → passes DQ → not too positional → **matches the anchor** → holds on more files). You review *values, not selectors*; suspect proposals are flagged and never auto-applied. The loop is a LangGraph state graph: a rejected proposal is retried with the gate's reason (never the expected value).
 - **Versioned configs** — every change is a new version with a diff view and per-batch pinning; concurrent heals serialize under a Postgres advisory lock.
+- **Agent access over MCP** — Claude Code and other agents can upload, parse, read results and propose heals; they can apply only gate-`healed` repairs.
 - **Pluggable LLM** — local Ollama by default, cloud Claude opt-in. The ✨ field classifier is always opt-in — interactive clicking never blocks on a model.
 
 ## See it work
@@ -46,6 +47,15 @@ python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 cd frontend && npm install && npm run dev           # UI at :3000
 ```
 
+**Agents (MCP).** With the API running, register the stdio MCP server so Claude Code (or any MCP client) can drive extraction jobs:
+
+```bash
+claude mcp add scrapesmith -- "$PWD/backend/.venv/bin/python" -m app.mcp_server   # run from the repo root
+# SCRAPESMITH_API_URL defaults to http://localhost:8000
+```
+
+Tools: `list_batches`, `upload_html` (a file or a directory of `.html`), `start_parse`, `get_job`, `get_results`, `propose_heal`, `accept_heal`. An agent can only accept a field the gate marked `healed`. Suspect proposals stay a human call in the UI.
+
 **Config** lives in one gitignored file — copy `backend/.env.local.example` to `backend/.env.local`. It is loaded into the process environment, so the `SCRAPESMITH_*` settings, the bare `OLLAMA_HOST`, and the `ANTHROPIC_API_KEY` the Anthropic SDK reads for itself all come from the same place. A real environment variable always wins over the file. Set `SCRAPESMITH_ENV` to anything other than `local` and the app refuses to start on the built-in dev database credentials rather than failing later on the first query.
 
 ## How it works
@@ -76,11 +86,12 @@ flowchart LR
 | Rendering / extraction | Playwright (headless Chromium) — renders the preview **and** runs extraction |
 | Frontend | Next.js 15 (App Router, React + TypeScript) |
 | Heal LLM | Pluggable provider — Ollama (default) / cloud Claude (opt-in), anchor-checked in code |
+| Orchestration / agents | LangGraph (heal loop state graph), MCP Python SDK (stdio server for agents) |
 
 ## Tests
 
 ```bash
-backend/.venv/bin/pytest              # 246 passed with Postgres up; 231 passed / 15 skipped without
+backend/.venv/bin/pytest              # 280 passed with Postgres + Playwright; 252 passed / 28 skipped with SKIP_PLAYWRIGHT=1
 cd backend && .venv/bin/ruff check .
 cd frontend && npm run typecheck && npm run build
 ```
@@ -107,6 +118,21 @@ below attributable to `k` rather than to the sampler.
 | `anchor_correct_rate` | 95.8% | the model produced the right value |
 | `resolve_but_wrong_rate` | 2.1% (1/48) | guard: resolved a plausible *wrong* value; a rise here is a regression |
 | `no_proposal_rate` | 0.0% | |
+
+### Retry with feedback — does telling the model why it failed help?
+
+The heal loop is a LangGraph state graph (`app/heal_graph.py`): propose → gate → retry the fields not yet healed, with each rejected selector and the gate's reason added to the prompt. The anchor value is never included. The bench runs the same graph, so `--max-attempts` measures the loop that ships:
+
+```bash
+cd backend && .venv/bin/python -m spike --fixtures fixtures/drift --provider ollama --max-attempts 3
+```
+
+| arm | `healed_rate` | `resolve_but_wrong_rate` | model calls |
+|---|---|---|---|
+| `--max-attempts 1` (baseline, through the graph) | 95.8% (46/48) | 2.1% | 21 |
+| `--max-attempts 3` | 95.8% (46/48) | 2.1% | 25 |
+
+**Null result, qwen2.5-coder:7b, greedy.** The baseline leaves only 2 fields to recover, so the ceiling is +4.2pp and one field is 2.1pp. The attempt-1 arm reproduces the original baseline's 48 selectors exactly, so this is the same experiment. Neither miss responded to feedback in a way that helped. On `event__tag_swap.venue` the model repeated the identical selector after being told it "matched no element". On `product__combo.price` it moved off the `₹2,999` promo decoy, but to another decoy (the product name), which fails DQ. The earlier `suspect` verdict was kept, so the guard held. The retry is kept because the API and agents use it and it costs nothing when the first attempt heals, but on this model and corpus it hasn't earned a number. Untested levers: a stronger model, or sampling on retries (rejected for now because it undoes the greedy noise floor).
 
 ### Heal memory — does a past repair help the next one?
 

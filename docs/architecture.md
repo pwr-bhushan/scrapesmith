@@ -66,6 +66,17 @@ flowchart LR
 
 **Healing** (`app/heal.py`, §10). Trigger is per-field: heal as soon as any field fails on ≥30% of items. Failing files cluster by a normalized `dom_skeleton_hash` (tag tree with dynamic attributes stripped, so structurally-identical pages collide). The LLM proposes selectors per cluster; each proposal passes a 6-step post-check — valid prefix → resolves → passes DQ → not too positional → **matches the anchor (normalized)** → holds on 2 more cluster files. Result per field: `healed | suspect | still_broken`. Suspect (diverges from anchor) is surfaced, never auto-applied. Anchor-correctness is enforced here in code, independent of the model prompt.
 
+**Heal graph** (`app/heal_graph.py`). The loop is two LangGraph state graphs. `DRIFT_GRAPH` (detect → cluster → heal each cluster) is what `/heal/propose` runs. `HEAL_GRAPH` (propose → validate → retry) handles one cluster, and the bench invokes it directly, so the eval measures the shipped loop. A retry re-prompts only the fields not yet `healed`, appending `"<selector> — <reason>"` per earlier attempt. The reason quotes the value the *proposal* extracted, and only when the anchor was checked on that same page. It never contains the anchor value: if the model were told the expected text, it could search for the string and the anchor check would become a formality. The best verdict per field is kept across attempts.
+
+```mermaid
+flowchart LR
+    P[propose] --> V["validate<br/>(post_check)"]
+    V -->|all healed or attempts spent| E([proposals])
+    V -->|still_broken / suspect| R["retry<br/>append reason"] --> P
+```
+
+**MCP server** (`app/mcp_server.py`). A stdio process that is a thin httpx client over the HTTP API, with no database access. Agents can list, upload, parse, read results and propose heals. They can *accept* only a field that is `healed` with one selector on every cluster. `accept_heal` takes field names, not selectors, so an agent cannot apply a suspect or hand-written selector, and it sends `expected_version` so a stale proposal gets a 409.
+
 **Versioning** (`app/storage.py`, §11). Each accepted config is a new `config_version`; the version number is computed under `pg_advisory_xact_lock(hashtext(domain_id))`, so concurrent saves/heals serialize instead of colliding on `unique(domain_id, version)`. A batch runs against its pinned version if set, else the domain's latest (`effective_config_version`).
 
 **Security** (§14). Untrusted HTML renders in isolated contexts that abort all non-`file://` requests (no SSRF/egress). The snapshot streamed to the browser has `<script>`s stripped, a strict CSP, and renders in a sandboxed iframe. Upload caps (size / count / uncompressed total) are enforced *before* extraction (zip-bomb guard); archive filenames are sanitized to a basename (no path traversal).

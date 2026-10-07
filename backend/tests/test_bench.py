@@ -520,3 +520,33 @@ class TestRunBenchMemoryWiring:
 
         baseline = run_bench([case], [FakeProvider({f.name: "css=.x" for f in case.fields})])
         assert all(r.n_examples == 0 for r in baseline)
+
+
+# ---------------------------------------------------------------------------
+# Section D — the bench runs the shipped heal graph; --max-attempts 1 is the old path
+# ---------------------------------------------------------------------------
+
+class TestRunBenchRetry:
+    def test_max_attempts_defaults_to_one(self):
+        """Default 1 keeps every existing artifact's arm reproducible: one propose, one gate."""
+        import inspect
+
+        from spike.bench import run_bench
+
+        assert inspect.signature(run_bench).parameters["max_attempts"].default == 1
+
+    @pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+    def test_results_record_attempts_used(self):
+        import pathlib as _pathlib
+
+        from spike.bench import load_case, run_bench
+
+        case = load_case(
+            str(_pathlib.Path(__file__).parent.parent / "fixtures" / "drift" / "product__combo")
+        )
+        never = FakeProvider({f.name: "css=.matches-nothing" for f in case.fields})
+        once = run_bench([case], [never])
+        thrice = run_bench([case], [never], max_attempts=3)
+        assert all(r.attempts == 1 for r in once)
+        assert all(r.attempts == 3 for r in thrice)
+        assert all(r.status == "still_broken" for r in thrice)

@@ -71,6 +71,13 @@ def main(argv: list[str] | None = None) -> int:
              "store; k>0 arms read it and must not overwrite it.",
     )
     parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=1,
+        help="heal-graph attempts per case; retries feed back why the gate rejected the last "
+             "selector (default: 1, the no-retry baseline)",
+    )
+    parser.add_argument(
         "--case", action="append", default=None,
         help="Run only this case directory name. Repeatable. Default: all.",
     )
@@ -87,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.save_memory and args.k > 0:
         parser.error("--save-memory requires --k 0: memory seeded from a few-shot run teaches "
                      "the model its own retrieved answers")
+    if args.max_attempts < 1:
+        parser.error("--max-attempts must be at least 1")
+    if args.save_memory and args.max_attempts > 1:
+        parser.error("--save-memory requires --max-attempts 1: the store is the baseline's heals")
     if args.save_memory and args.case:
         parser.error("--save-memory requires the full corpus: --case would truncate the store "
                      "to the selected cases")
@@ -114,7 +125,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"{len(cases)} cases, {n_fields} fields, provider={args.provider}, "
-        f"k={args.k}, partition={args.partition}, memory={len(memory)} entries",
+        f"k={args.k}, partition={args.partition}, memory={len(memory)} entries, "
+        f"max_attempts={args.max_attempts}",
         file=sys.stderr,
     )
 
@@ -124,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         k=args.k,
         memory=memory,
         partition=args.partition,
+        max_attempts=args.max_attempts,
     )
     metrics = compute_metrics(results)
     print(render_table(results, metrics))
@@ -138,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
                 "k": args.k,
                 "partition": args.partition,
                 "memory_entries": len(memory),
+                "max_attempts": args.max_attempts,
             },
         )
         print(f"\nwrote {args.out}/phase0_report.json and .md", file=sys.stderr)

@@ -259,3 +259,19 @@ that path pulls in — a browser, a database, a network call — and gate it the
 repo gates it. Before pushing, run the suite once under each environment flag CI sets
 (`SKIP_PLAYWRIGHT=1` here, and with the DB pointed at a closed port), not just the local
 everything-available configuration. Two extra runs, ten seconds each.
+
+**Never share Ollama with a running bench arm (2026-10-07)** — the first `--max-attempts 1` run
+scored 87.5% against a 95.8% baseline. That wasn't a regression: an MCP smoke test was sending
+heal calls to the same Ollama at the same time, two bench requests queued past
+`OllamaProvider`'s 60s client timeout, and 4 fields came back as "no proposal". The giveaway is
+`no_proposal_rate > 0` (the baseline has 0%) together with HTTP 500s at exactly `1m0s` in the
+Ollama log. **Rule:** a bench arm gets Ollama to itself. Run arms back to back, not alongside
+anything else, and count Ollama 500s per arm. A retry arm hides this by recovering timeouts on
+the next attempt, which would score reliability as model skill.
+
+**mcp 2.x is not the mcp 1.x API (2026-10-07)** — `FastMCP` is now
+`mcp.server.mcpserver.MCPServer`. A tool that raises anything other than
+`mcp.server.mcpserver.exceptions.ToolError` reaches the agent as a bare "Error executing tool X",
+because the message stays on the server. A refusal the agent can't read is useless, so tools
+raise `ToolError` on purpose. Unit tests that call the tool function directly can't see this;
+only a test that goes through `mcp.call_tool(...)`, or a real stdio client, can.

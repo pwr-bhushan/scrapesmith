@@ -146,3 +146,31 @@ class TestNoAnchorLeak:
             assert field.anchor not in block, (
                 f"anchor {field.anchor!r} leaked into the prompt outside the page HTML"
             )
+
+
+# ---------------------------------------------------------------------------
+# Section D — retry feedback (fork 1A: the reason, never the anchor)
+# ---------------------------------------------------------------------------
+
+class TestRetryFeedback:
+    def test_empty_feedback_is_byte_identical_to_golden(self):
+        """Attempt 1 of the heal graph must be the pre-graph prompt, or --max-attempts 1 is
+        not the baseline it claims to be."""
+        import dataclasses
+
+        cleaned, fields, failures, _ = _golden_inputs()
+        explicit = [dataclasses.replace(f, feedback=()) for f in failures]
+        assert build_prompt(cleaned, fields, explicit) == GOLDEN.read_text(encoding="utf-8")
+
+    def test_feedback_renders_under_its_own_field(self):
+        failures = [
+            Failure(field_name="price", dq_status="empty",
+                    feedback=("css=.x — matched no element",)),
+            Failure(field_name="title", dq_status="empty"),
+        ]
+        prompt = build_prompt("<html></html>", SAMPLE_FIELDS, failures)
+        price_line = prompt.index("  - price (")
+        title_line = prompt.index("  - title (")
+        rejected = prompt.index("css=.x — matched no element")
+        assert price_line < rejected < title_line
+        assert prompt.count("rejected:") == 1

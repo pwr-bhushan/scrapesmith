@@ -37,6 +37,16 @@ def _render_examples(examples: Sequence[Mapping[str, Any]]) -> str:
     )
 
 
+def _render_feedback(feedback: Sequence[str]) -> str:
+    """Earlier attempts at one field and why the gate rejected them, or "" on attempt 1.
+
+    Reasons come from ``app.heal.post_check`` and never contain the anchor value — telling the
+    model the expected text would let it search for the string and make the anchor check a
+    formality (Section D, fork 1A).
+    """
+    return "".join(f"\n      rejected: {line}" for line in feedback)
+
+
 def build_prompt(
     cleaned_html: str,
     fields: List[FieldSpec],
@@ -55,11 +65,12 @@ def build_prompt(
     Returns:
         Prompt string ready for the LLM.
     """
-    failure_names = {f.field_name for f in failures}
-    failed_specs = [f for f in fields if f.name in failure_names]
+    feedback = {f.field_name: f.feedback for f in failures}
+    failed_specs = [f for f in fields if f.name in feedback]
 
     field_lines = "\n".join(
         f"  - {f.name} (type={f.field_type}, old_selector={f.old_selector!r})"
+        + _render_feedback(feedback[f.name])
         for f in failed_specs
     )
 

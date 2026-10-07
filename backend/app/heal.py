@@ -79,7 +79,7 @@ async def post_check(
     render_js: bool,
     paths_by_filename: dict | None = None,
 ) -> dict:
-    """Run §10 steps 1–6 per field. Returns {field: {selector, status, value, anchor_ok}}.
+    """Run §10 steps 1–6 per field. Returns {field: {selector, status, value, anchor_ok, reason}}.
 
     ``paths_by_filename`` maps every filename in the cluster to its path so the step-5 anchor
     check can run on the page the anchor was captured from — see ``_anchor_check``.
@@ -100,20 +100,22 @@ async def post_check(
 
                 # step 1: valid prefix
                 if not (selector.startswith("css=") or selector.startswith("xpath=")):
-                    out[name] = _bad(selector, "still_broken")
+                    out[name] = _bad(selector, "lacks a css= or xpath= prefix")
                     continue
                 # step 4: not too positional
                 if is_too_positional(selector):
-                    out[name] = _bad(selector, "still_broken")
+                    out[name] = _bad(selector, "too positional (nth-child or several indexes)")
                     continue
                 # step 2: resolves
                 count, value = await _resolve(page, selector)
                 if not count:
-                    out[name] = _bad(selector, "still_broken")
+                    out[name] = _bad(selector, "matched no element")
                     continue
                 # step 3: DQ
-                if check_dq(value, dq) != "ok":
-                    out[name] = _bad(selector, "still_broken", value)
+                dq_status = check_dq(value, dq)
+                if dq_status != "ok":
+                    out[name] = _bad(selector, f"matched {value!r}, which fails data-quality "
+                                               f"({dq_status})", value)
                     continue
                 # step 5: anchor check
                 anchor_ok = await _anchor_check(
@@ -130,6 +132,10 @@ async def post_check(
                     "status": status,
                     "value": value,
                     "anchor_ok": anchor_ok,
+                    "reason": _suspect_reason(
+                        anchor_ok, extra_ok, value,
+                        _anchor_on(field, rep_path, paths_by_filename),
+                    ),
                 }
             await context.close()
         finally:
@@ -137,8 +143,34 @@ async def post_check(
     return out
 
 
-def _bad(selector: str, status: str, value: str | None = None) -> dict:
-    return {"selector": selector, "status": status, "value": value, "anchor_ok": None}
+def _bad(selector: str, reason: str, value: str | None = None) -> dict:
+    return {"selector": selector, "status": "still_broken", "value": value, "anchor_ok": None,
+            "reason": reason}
+
+
+def _suspect_reason(
+    anchor_ok: bool | None, extra_ok: bool, value: str | None, anchor_on_rep: bool
+) -> str:
+    """Why a verdict is what it is, in words the retry prompt can use.
+
+    Quotes the value the *proposal* extracted, never the anchor: the model may learn what was
+    wrong, not what is right (Section D, fork 1A). The value is quoted only when the anchor was
+    checked on the rep: otherwise ``value`` is the rep's, which is not what failed and can even
+    equal the anchor (two products, one price) — quoting it would leak the answer.
+    """
+    if anchor_ok is False and anchor_on_rep:
+        return f"matched {value!r}, which is not this field's value"
+    if anchor_ok is False:
+        return "did not reproduce the confirmed value on the page it was confirmed on"
+    if not extra_ok:
+        return "did not hold on other pages with the same layout"
+    return "ok"
+
+
+def _anchor_on(field: dict, rep_path: str, paths_by_filename: dict | None) -> bool:
+    """Was step 5 run against the rep page (the page ``value`` came from)?"""
+    source = (field.get("anchor") or {}).get("file")
+    return not source or (paths_by_filename or {}).get(source) == rep_path
 
 
 async def _resolve_at(browser, path: str, selector: str, render_js: bool):

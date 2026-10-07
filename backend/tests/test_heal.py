@@ -206,3 +206,49 @@ async def test_heal_propose_unavailable_and_accept(_, monkeypatch):
         )).json()
         assert acc["version"] == 2
         assert acc["healed"] == ["price"]
+        assert prop["config_version"] == 1
+
+        # review fix: accepting against a proposal made on an older config is refused
+        stale = await c.post("/heal/accept", json={
+            "batch_id": batch_id, "accepted": {"price": "css=#title"}, "expected_version": 1,
+        })
+        assert stale.status_code == 409
+
+
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_every_verdict_carries_a_reason_for_the_retry_prompt(files):
+    """Section D: the heal graph feeds `reason` back to the model, so each rejection path
+    has to say why — and none of them may quote the anchor value (fork 1A)."""
+    rep, other = files
+    fields_by_name = {
+        "price": {"name": "price", "dq": {"required": True, "parses_as": "number"},
+                  "anchor": {"value": "999"}},
+    }
+    cases = {
+        "css=.nope": "matched no element",
+        "css=div:nth-child(2)": "positional",
+        "price": "css= or xpath=",
+        "css=[data-price]": "not this field's value",  # resolves to 100, anchor is 999
+    }
+    for selector, expected in cases.items():
+        out = await post_check({"price": selector}, rep, [other], fields_by_name, False)
+        reason = out["price"]["reason"]
+        assert expected in reason, (selector, reason)
+        assert "999" not in reason
+
+
+@pytest.mark.skipif(os.environ.get("SKIP_PLAYWRIGHT") == "1", reason="SKIP_PLAYWRIGHT=1")
+async def test_reason_never_quotes_a_value_from_another_page_than_the_anchor(two_products):
+    """Review fix: when the anchor lives on a non-rep page, the rep's value can equal the
+    anchor (same price on two products). Quoting it as "not this field's value" would leak
+    the anchor into the retry prompt."""
+    rep, anchor_page = two_products  # rep reads 250, anchor page reads 100
+    fields = _priced({"value": "250", "file": "anchor.html"})
+    paths = {"rep.html": rep, "anchor.html": anchor_page}
+
+    checked = await post_check(
+        {"price": "css=[data-price]"}, rep, [anchor_page], fields, False, paths
+    )
+    assert checked["price"]["status"] == "suspect"
+    assert "250" not in checked["price"]["reason"]
+    assert "confirmed" in checked["price"]["reason"]
