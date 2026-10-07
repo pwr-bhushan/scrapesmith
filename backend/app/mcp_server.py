@@ -28,6 +28,7 @@ MAX_RESULT_ROWS = 200
 # propose runs up to max_attempts model calls + Playwright gates per cluster
 HEAL_TIMEOUT_S = 900.0
 _HTML_EXT = (".html", ".htm")
+_UPLOAD_EXT = (*_HTML_EXT, ".gz", ".zip")
 
 mcp = MCPServer(
     "scrapesmith",
@@ -80,6 +81,10 @@ async def upload_html(path: str, host: str, page_type: str, render_js: bool = Tr
         raise ToolError(f"{p} does not exist")
     if p.is_dir():
         name, data = f"{p.name or 'upload'}.zip", _zip_html(p)
+    elif not p.name.lower().endswith(_UPLOAD_EXT):
+        # the API stores any single file as HTML, so without this an agent could upload a key
+        # or an env file into a batch and read it back
+        raise ToolError(f"only .html/.htm/.gz/.zip files can be uploaded, not {p.name}")
     else:
         name, data = p.name, p.read_bytes()
     return await _call(

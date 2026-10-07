@@ -169,3 +169,22 @@ async def test_accept_refuses_layouts_that_healed_with_different_selectors(api):
     await srv.propose_heal("b1")
     with pytest.raises(ToolError, match="different selectors"):
         await srv.accept_heal("b1", ["price"])
+
+
+@pytest.mark.parametrize("name", ["id_rsa", ".env.local", "notes.txt", "dump.sql"])
+async def test_upload_single_file_must_be_html_or_archive(api, tmp_path, name):
+    """The docstring promised .html/.htm/.gz/.zip but only the directory branch filtered, so an
+    agent could upload any readable file (a key, an env file) into a batch and read it back."""
+    sent, _ = api
+    (tmp_path / name).write_text("secret")
+    with pytest.raises(ToolError, match="only .html"):
+        await srv.upload_html(str(tmp_path / name), "shop.test", "product")
+    assert sent == []
+
+
+@pytest.mark.parametrize("name", ["page.html", "page.HTM", "pages.zip", "page.html.gz"])
+async def test_upload_single_file_accepts_html_and_archives(api, tmp_path, name):
+    sent, replies = api
+    replies["POST /upload"] = (200, {"batch_id": "b9"})
+    (tmp_path / name).write_bytes(b"x")
+    assert (await srv.upload_html(str(tmp_path / name), "shop.test", "product"))["batch_id"] == "b9"
