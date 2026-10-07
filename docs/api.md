@@ -161,7 +161,7 @@ on since (another accept or a pin), so stale selectors can't overwrite it.
 | tool | wraps |
 |---|---|
 | `list_batches(limit)` | `GET /batches` |
-| `upload_html(path, host, page_type, render_js)` | `POST /upload` — a file, or a directory zipped client-side (`.html`/`.htm` only) |
+| `upload_html(path, host, page_type, render_js)` | `POST /upload` — a `.html`/`.htm`/`.gz`/`.zip` file (anything else is refused), or a directory whose `.html`/`.htm` files are zipped client-side |
 | `start_parse(batch_id)` · `get_job(job_id)` | `POST /parse/batch` · `GET /jobs/{id}` |
 | `get_results(batch_id, max_rows=20)` | `GET /batch/{id}/results`, rows capped at 200 |
 | `propose_heal(batch_id, max_attempts=3)` | `POST /heal/propose` |
